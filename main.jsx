@@ -1,41 +1,123 @@
 const { useEffect, useMemo, useState, useRef } = React;
 
-/* ----------------- localStorage (history) ----------------- */
+/* ----------------- helpers & storage ----------------- */
 const LS_KEY = "econ_mcq_history_v2";
 const ls = {
   get() { try { return JSON.parse(localStorage.getItem(LS_KEY)) ?? []; } catch { return []; } },
   set(v) { try { localStorage.setItem(LS_KEY, JSON.stringify(v)); } catch {} }
 };
-
-/* ----------------- helpers ----------------- */
-const shuffle = (arr) => {
-  const a = arr.slice();
-  for (let i=a.length-1; i>0; i--) {
-    const j = Math.floor(Math.random()*(i+1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-};
+const shuffle = (arr) => { const a = arr.slice(); for (let i=a.length-1; i>0; i--) { const j = Math.floor(Math.random()*(i+1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const sampleN = (arr, n) => shuffle(arr).slice(0, n);
 const timeForQuestionsSec = (n) => Math.ceil(n * 1.2 * 60);
 
-/* ----------------- Background for Home & Result ----------------- */
+/* ----------------- Background (Home + Result) ----------------- */
 function BackgroundImage() {
   return (
     <>
-      {/* Ganesh sketch (auto scales by screen using vmin) */}
       <div
         className="
           pointer-events-none absolute inset-0
           bg-[url('./ganesh.png')] bg-no-repeat bg-center bg-fixed
-          opacity-20
+          opacity-25
           bg-[length:60vmin] sm:bg-[length:52vmin] md:bg-[length:48vmin] lg:bg-[length:44vmin] xl:bg-[length:40vmin]
         "
       />
-      {/* soft red wash for readability */}
-      <div className="absolute inset-0 bg-red-50/15" />
+      <div className="absolute inset-0 bg-red-50/10" />
     </>
   );
+}
+
+/* ----------------- Reusable styles ----------------- */
+const glassBtn = (extra="") =>
+  `px-4 py-2 rounded-lg border border-white/40 bg-white/30 hover:bg-white/40
+   text-gray-800 backdrop-blur-xl transition shadow-sm hover:shadow
+   transform-gpu hover:scale-[1.03] active:scale-[0.99] ${extra}`;
+
+const solidBtn = (extra="") =>
+  `px-4 py-2 rounded-lg text-white shadow-md transform-gpu hover:scale-[1.03] active:scale-[0.99] ${extra}`;
+
+/* ----------------- Confetti (tiny, dependency-free) ----------------- */
+function ConfettiBurst({ trigger }) {
+  useEffect(() => {
+    if (!trigger) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.style.position = 'fixed';
+    canvas.style.inset = '0';
+    canvas.style.pointerEvents = 'none';
+    canvas.style.zIndex = 9999;
+    document.body.appendChild(canvas);
+
+    const ctx = canvas.getContext('2d');
+    const resize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
+    resize();
+    window.addEventListener('resize', resize);
+
+    const colors = ["#14b8a6","#f43f5e","#60a5fa","#a78bfa","#22c55e","#f59e0b"]; // teal, rose, blue, violet, green, amber
+    const N = Math.min(240, Math.floor((canvas.width + canvas.height) / 6));
+    const gravity = 0.12, drag = 0.985;
+    const cx = canvas.width/2, cy = canvas.height*0.15;
+
+    const parts = Array.from({length: N}).map(() => {
+      const angle = (Math.random()*Math.PI) - (Math.PI/2);
+      const speed = 6 + Math.random()*8;
+      return {
+        x: cx + (Math.random()*80 - 40),
+        y: cy + (Math.random()*20 - 10),
+        vx: Math.cos(angle)*speed,
+        vy: Math.sin(angle)*speed - 2,
+        size: 2 + Math.random()*4,
+        rot: Math.random()*Math.PI*2,
+        vr: (Math.random()-0.5)*0.2,
+        color: colors[(Math.random()*colors.length)|0],
+        life: 0,
+        ttl: 120 + Math.random()*60
+      };
+    });
+
+    let raf, frame = 0;
+    const tick = () => {
+      frame++;
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+
+      parts.forEach(p => {
+        p.vx *= drag;
+        p.vy = p.vy*drag + gravity;
+        p.x += p.vx;
+        p.y += p.vy;
+        p.rot += p.vr;
+        p.life++;
+
+        // alpha fades near end
+        const alpha = Math.max(0, Math.min(1, 1 - (p.life / p.ttl)));
+        ctx.globalAlpha = alpha;
+
+        // draw rectangle confetti
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.size, -p.size*0.5, p.size*2, p.size);
+        ctx.restore();
+        ctx.globalAlpha = 1;
+      });
+
+      // stop after most are done
+      if (frame < 180) { raf = requestAnimationFrame(tick); }
+      else cleanup();
+    };
+
+    const cleanup = () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', resize);
+      if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
+    };
+
+    raf = requestAnimationFrame(tick);
+    return cleanup;
+  }, [trigger]);
+
+  return null;
 }
 
 /* ----------------- UI pieces ----------------- */
@@ -57,7 +139,7 @@ function TopBar({ page, onHome, total, attempted, mode, remainingSec }) {
             </span>
           )}
           {page !== 'home' && (
-            <button onClick={onHome} className="px-3 py-1.5 rounded-lg border hover:bg-gray-50">Home</button>
+            <button onClick={onHome} className={glassBtn()}>Home</button>
           )}
         </div>
       </div>
@@ -68,7 +150,7 @@ function TopBar({ page, onHome, total, attempted, mode, remainingSec }) {
 function ProgressBar({ currentIndex, total }) {
   const pct = total ? Math.round(((currentIndex + 1) / total) * 100) : 0;
   return (
-    <div className="w-full bg-gray-200/70 h-2 rounded-full">
+    <div className="w-full bg-white/40 backdrop-blur h-2 rounded-full shadow-inner">
       <div className="bg-teal-500 h-2 rounded-full transition-all" style={{ width: pct + '%' }} />
     </div>
   );
@@ -104,13 +186,10 @@ const App = () => {
   }, []);
 
   const total = activeSet.length;
-  const attempted = useMemo(
-    () => Object.keys(answers).filter(k => answers[k] != null).length, [answers]);
+  const attempted = useMemo(() => Object.keys(answers).filter(k => answers[k] != null).length, [answers]);
   const unattempted = Math.max(0, total - attempted);
 
-  const markSkippedIfUnanswered = (i) => {
-    if (!answers[i] && !marked[i]) setSkipped(p => ({...p, [i]: true}));
-  };
+  const markSkippedIfUnanswered = (i) => { if (!answers[i] && !marked[i]) setSkipped(p => ({...p, [i]: true})); };
   const handleSelect = (opt) => {
     setAnswers(p => ({...p, [current]: opt}));
     setSkipped(p => { const c={...p}; delete c[current]; return c; });
@@ -187,23 +266,25 @@ const App = () => {
         <div className="relative min-h-screen">
           <BackgroundImage/>
           <main className="relative max-w-6xl mx-auto px-4 py-10 space-y-8">
-            {/* beautiful gradient + glass card */}
-            <section className="rounded-3xl p-[1px] bg-gradient-to-br from-rose-200/70 via-red-200/60 to-rose-200/70 shadow-lg shadow-red-200/40">
-              <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-6">
+            {/* Glass HOME card with gradient ring */}
+            <section className="relative rounded-3xl p-[1px] bg-gradient-to-br from-rose-200/70 via-red-200/60 to-rose-200/70 shadow-lg shadow-red-200/40">
+              <div className="relative overflow-hidden rounded-3xl p-6 bg-white/30 backdrop-blur-xl border border-white/40">
+                <div className="pointer-events-none absolute -top-16 -left-16 w-72 h-72 bg-white/20 rounded-full blur-3xl"></div>
+
                 <h2 className="text-2xl font-semibold">MCQ Practice – CUET PG Economics</h2>
-                <p className="text-gray-500 mt-1">Practice chapter-wise Economics PYQs with instant feedback.</p>
+                <p className="text-gray-700 mt-1">Practice chapter-wise Economics PYQs with instant feedback.</p>
                 <div className="mt-6 grid md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm">Chapter Filter</label>
-                    <select value={chapter} onChange={e=>setChapter(e.target.value)} className="w-full p-2 border rounded-lg">
+                    <select value={chapter} onChange={e=>setChapter(e.target.value)} className="w-full p-2 border rounded-lg bg-white/60 backdrop-blur">
                       {['All',...new Set(questions.map(q=>q.chapter).filter(Boolean))].map(c=><option key={c}>{c}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="text-sm">Mode</label>
                     <div className="flex gap-4">
-                      <label><input type="radio" checked={mode==='practice'} onChange={()=>setMode('practice')}/> Practice</label>
-                      <label><input type="radio" checked={mode==='test'} onChange={()=>setMode('test')}/> Test</label>
+                      <label className="flex items-center gap-2"><input type="radio" checked={mode==='practice'} onChange={()=>setMode('practice')}/> Practice</label>
+                      <label className="flex items-center gap-2"><input type="radio" checked={mode==='test'} onChange={()=>setMode('test')}/> Test</label>
                     </div>
                   </div>
                 </div>
@@ -211,19 +292,19 @@ const App = () => {
                   <div className="mt-4 grid md:grid-cols-2 gap-4">
                     <div>
                       <label className="text-sm">No. of Questions</label>
-                      <input type="number" min="1" value={testCount} onChange={e=>setTestCount(e.target.value)} className="w-full p-2 border rounded-lg"/>
-                      <p className="text-xs text-gray-500 mt-1">Available: {filteredCount}</p>
+                      <input type="number" min="1" value={testCount} onChange={e=>setTestCount(e.target.value)} className="w-full p-2 border rounded-lg bg-white/60 backdrop-blur"/>
+                      <p className="text-xs text-gray-700 mt-1">Available: {filteredCount}</p>
                     </div>
                     <div className="flex items-end">
-                      <div className="p-2 border rounded bg-gray-50 text-sm">Estimated Time : {mm}:{String(ss).padStart(2,'0')}</div>
+                      <div className="p-2 border rounded bg-white/60 backdrop-blur text-sm">Estimated Time : {mm}:{String(ss).padStart(2,'0')}</div>
                     </div>
                   </div>
                 )}
                 <div className="mt-6">
                   {mode==='practice'?(
-                    <button onClick={startPractice} className="bg-teal-600 text-white px-5 py-2 rounded">Start Practice</button>
+                    <button onClick={startPractice} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Start Practice</button>
                   ):(
-                    <button onClick={startTest} className="bg-teal-600 text-white px-5 py-2 rounded">Start Test</button>
+                    <button onClick={startTest} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Start Test</button>
                   )}
                 </div>
               </div>
@@ -238,7 +319,6 @@ const App = () => {
   if(page==='quiz'){
     const q=activeSet[current];
     if (!q) {
-      // safety: if filter produced empty set
       return (
         <>
           <TopBar page={page} onHome={goHome} total={0} attempted={0} mode={mode} remainingSec={remainingSec}/>
@@ -250,105 +330,124 @@ const App = () => {
     }
     const sel=answers[current];
 
-    // palette status for each question
+    // palette status
     const statusFor=(i)=>{
       const answered = answers[i] != null;
       const isMarked = !!marked[i];
       const isSkipped = !!skipped[i];
-      if (answered && isMarked) return 'attempted_marked'; // violet
-      if (!answered && isMarked) return 'marked_only';     // blue
-      if (!answered && isSkipped) return 'skipped';        // red
-      if (answered) return 'attempted';                    // parrot green
-      return 'unattempted';                                // white
+      if (answered && isMarked) return 'attempted_marked'; // BLUE
+      if (!answered && isMarked) return 'marked_only';     // PURPLE
+      if (!answered && isSkipped) return 'skipped';        // RED
+      if (answered) return 'attempted';                    // GREEN
+      return 'unattempted';                                // WHITE
     };
     const badgeClass=(s,i)=>{
       const base="w-8 h-8 rounded-md flex items-center justify-center text-sm border cursor-pointer";
       const ring=(i===current)?" ring-2 ring-teal-500":"";
-      if (s==='attempted_marked') return base+" bg-violet-500 text-white border-violet-600"+ring;
-      if (s==='marked_only')     return base+" bg-blue-500 text-white border-blue-600"+ring;
+      if (s==='attempted_marked') return base+" bg-blue-500 text-white border-blue-600"+ring;    // BLUE
+      if (s==='marked_only')     return base+" bg-violet-500 text-white border-violet-600"+ring; // PURPLE
       if (s==='skipped')         return base+" bg-red-500 text-white border-red-600"+ring;
       if (s==='attempted')       return base+" bg-[#32CD32] text-white border-green-600"+ring;
       return base+" bg-white text-gray-700 border-gray-300"+ring;
     };
+
+    // dynamic Mark for Review color (button)
+    const markBtnColor = sel
+      ? marked[current]
+        ? "bg-blue-500/80 text-white border-blue-300 hover:bg-blue-600/80"
+        : ""
+      : marked[current]
+      ? "bg-violet-500/80 text-white border-violet-300 hover:bg-violet-600/80"
+      : "";
 
     return(
       <>
         <TopBar page={page} onHome={goHome} total={total} attempted={attempted} mode={mode} remainingSec={remainingSec}/>
         <main className="max-w-6xl mx-auto px-4 py-6">
           <div className="grid lg:grid-cols-[1fr,280px] gap-6">
-            {/* left: question card */}
+            {/* left: Glass question card */}
             <div>
               <div className="mb-3 flex items-center justify-between gap-4">
-                <div className="text-sm text-gray-500">Question {current+1} of {total}</div>
+                <div className="text-sm text-gray-600">Question {current+1} of {total}</div>
                 <div className="w-1/2"><ProgressBar currentIndex={current} total={total}/></div>
               </div>
 
-              <section className="bg-white rounded-2xl shadow p-6">
-                <div className="mb-2 text-xs uppercase tracking-wide text-gray-500">Chapter</div>
-                <div className="mb-4 text-base font-medium">{q.chapter || '—'}</div>
+              {/* gradient ring + glass container with animation */}
+              <section className="relative rounded-3xl p-[1px] bg-gradient-to-br from-rose-200/70 via-red-200/60 to-rose-200/70 shadow-lg shadow-red-200/40">
+                <div
+                  key={current}
+                  className="relative overflow-hidden rounded-3xl p-6 bg-white/30 backdrop-blur-xl border border-white/40 animate-slidefade"
+                >
+                  <div className="pointer-events-none absolute -top-16 -left-16 w-72 h-72 bg-white/20 rounded-full blur-3xl"></div>
 
-                <h3 className="text-lg font-semibold leading-relaxed">{q.question}</h3>
-                {q.source && <div className="mt-1 text-xs text-gray-500">Source: {q.source}</div>}
+                  <div className="mb-2 text-xs uppercase tracking-wide text-gray-700">Chapter</div>
+                  <div className="mb-4 text-base font-medium">{q.chapter || '—'}</div>
 
-                <div className="mt-5 grid gap-3">
-                  {q.options.map((opt, idx) => {
-                    const active = sel === opt;
-                    return (
-                      <label key={idx}
-                        className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition
-                                   ${active ? 'border-teal-500 bg-teal-50' : 'hover:bg-gray-50'}`}>
-                        <input
-                          type="radio"
-                          name={`q-${current}`}
-                          className="accent-teal-500"
-                          checked={active}
-                          onChange={() => handleSelect(opt)}
-                        />
-                        <span className="font-medium">{String.fromCharCode(65 + idx)}.</span>
-                        <span>{opt}</span>
-                      </label>
-                    );
-                  })}
-                </div>
+                  <h3 className="text-lg font-semibold leading-relaxed">{q.question}</h3>
+                  {q.source && <div className="mt-1 text-xs text-gray-700">Source: {q.source}</div>}
 
-                {/* toolbar (Previous · Clear · Mark)  |  stats + Next/Submit */}
-                <div className="mt-6 flex items-center gap-3">
-                  {/* LEFT GROUP */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button onClick={prev} disabled={current===0} className="px-4 py-2 rounded-lg border disabled:opacity-50">
-                      Previous
-                    </button>
-
-                    <button onClick={clearResponse} className="px-4 py-2 rounded-lg border hover:bg-gray-50" title="Clear the selected option">
-                      Clear Response
-                    </button>
-
-                    <button
-                      onClick={()=>setMarked(p=>({...p,[current]:!p[current]}))}
-                      className={`px-4 py-2 rounded-lg border ${marked[current] ? 'bg-violet-600 text-white border-violet-700' : 'hover:bg-gray-50'}`}
-                    >
-                      {marked[current] ? 'Unmark Review' : 'Mark for Review'}
-                    </button>
+                  <div className="mt-5 grid gap-3">
+                    {q.options.map((opt, idx) => {
+                      const active = sel === opt;
+                      return (
+                        <label key={idx}
+                          className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition
+                                      bg-white/50 backdrop-blur hover:bg-white/70
+                                      ${active ? 'border-teal-500 ring-1 ring-teal-300' : 'border-white/50'}`}>
+                          <input
+                            type="radio"
+                            name={`q-${current}`}
+                            className="accent-teal-500"
+                            checked={active}
+                            onChange={() => handleSelect(opt)}
+                          />
+                          <span className="font-medium">{String.fromCharCode(65 + idx)}.</span>
+                          <span>{opt}</span>
+                        </label>
+                      );
+                    })}
                   </div>
 
-                  {/* Spacer pushes right group */}
-                  <div className="flex-1" />
+                  {/* toolbar */}
+                  <div className="mt-6 flex items-center gap-3">
+                    {/* LEFT GROUP */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button onClick={prev} disabled={current===0} className={glassBtn("disabled:opacity-50")}>
+                        Previous
+                      </button>
 
-                  {/* RIGHT GROUP */}
-                  <div className="flex items-center gap-4">
-                    <div className="text-sm text-gray-500">
-                      Attempted: <b>{attempted}</b> &nbsp;|&nbsp; Unattempted: <b>{unattempted}</b>
+                      <button onClick={clearResponse} className={glassBtn()} title="Clear the selected option">
+                        Clear Response
+                      </button>
+
+                      {/* dynamic Mark for Review button */}
+                      <button
+                        onClick={()=>setMarked(p=>({...p,[current]:!p[current]}))}
+                        className={`${glassBtn()} ${markBtnColor}`}
+                      >
+                        {marked[current] ? 'Unmark Review' : 'Mark for Review'}
+                      </button>
                     </div>
 
-                    {current < total - 1 ? (
-                      <button onClick={next} className="px-4 py-2 rounded-lg bg-teal-600 text-white">
-                        Next
-                      </button>
-                    ) : (
-                      <button onClick={submitNow} className="px-4 py-2 rounded-lg bg-green-600 text-white">
-                        Submit
-                      </button>
-                    )}
+                    {/* Spacer pushes right group */}
+                    <div className="flex-1" />
+
+                    {/* RIGHT GROUP */}
+                    <div className="flex items-center gap-4">
+                      <div className="text-sm text-gray-700">
+                        Attempted: <b>{attempted}</b> &nbsp;|&nbsp; Unattempted: <b>{unattempted}</b>
+                      </div>
+
+                      {current < total - 1 ? (
+                        <button onClick={next} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>
+                          Next
+                        </button>
+                      ) : (
+                        <button onClick={submitNow} className={solidBtn("bg-green-600 hover:bg-green-700")}>
+                          Submit
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </section>
@@ -356,7 +455,7 @@ const App = () => {
 
             {/* right: palette */}
             <aside className="lg:sticky lg:top-[72px]">
-              <div className="bg-white rounded-2xl shadow p-4">
+              <div className="rounded-2xl p-4 bg-white/70 backdrop-blur border border-white/60 shadow">
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="font-semibold">Question Palette</h4>
                   {mode === 'test' && (
@@ -369,14 +468,23 @@ const App = () => {
                 <div className="grid grid-cols-5 gap-2">
                   {activeSet.map((_, i) => {
                     const s = statusFor(i);
+                    const base = "w-8 h-8 rounded-md flex items-center justify-center text-sm border cursor-pointer";
+                    const ring=(i===current)?" ring-2 ring-teal-500":"";
+                    const color =
+                      s==='attempted_marked' ? "bg-blue-500 text-white border-blue-600" :     // BLUE
+                      s==='marked_only'     ? "bg-violet-500 text-white border-violet-600" : // PURPLE
+                      s==='skipped'         ? "bg-red-500 text-white border-red-600" :
+                      s==='attempted'       ? "bg-[#32CD32] text-white border-green-600" :
+                                              "bg-white/70 backdrop-blur border-white/60 text-gray-800";
                     return (
-                      <button key={i} className={badgeClass(s, i)} onClick={()=>goto(i)} title={`Go to Q${i+1}`}>
+                      <button key={i} className={`${base} ${color} ${ring}`} onClick={()=>goto(i)} title={`Go to Q${i+1}`}>
                         {i+1}
                       </button>
                     );
                   })}
                 </div>
 
+                {/* Legend */}
                 <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
                   <div className="flex items-center gap-2">
                     <span className="w-3 h-3 rounded bg-white border border-gray-300"></span> Unattempted
@@ -385,10 +493,10 @@ const App = () => {
                     <span className="w-3 h-3 rounded bg-[#32CD32] border border-green-600"></span> Attempted
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded bg-blue-500 border border-blue-600"></span> Marked (no answer)
+                    <span className="w-3 h-3 rounded bg-violet-500 border border-violet-600"></span> Marked (no answer)
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded bg-violet-500 border border-violet-600"></span> Attempted + Marked
+                    <span className="w-3 h-3 rounded bg-blue-500 border border-blue-600"></span> Attempted + Marked
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="w-3 h-3 rounded bg-red-500 border border-red-600"></span> Skipped
@@ -396,7 +504,7 @@ const App = () => {
                 </div>
 
                 <div className="mt-4">
-                  <button onClick={submitNow} className="w-full px-4 py-2 rounded-lg bg-green-600 text-white">
+                  <button onClick={submitNow} className={solidBtn("w-full bg-green-600 hover:bg-green-700")}>
                     Submit Test
                   </button>
                 </div>
@@ -411,27 +519,38 @@ const App = () => {
   /* ----------------- RESULT ----------------- */
   if(page==='result'){
     const percent=total?Math.round(score/total*100):0;
+
     return(
       <>
+        {/* 🎉 Confetti triggers automatically when ≥80% */}
+        <ConfettiBurst trigger={percent >= 80} />
+
         <TopBar page={page} onHome={goHome} total={total} attempted={attempted} mode={mode}/>
         <div className="relative min-h-screen">
           <BackgroundImage/>
           <main className="relative max-w-6xl mx-auto px-4 py-8">
-            <section className="rounded-3xl p-[1px] bg-gradient-to-br from-rose-200/70 via-red-200/60 to-rose-200/70 shadow-lg shadow-red-200/40">
-              <div className="bg-white/90 backdrop-blur-sm rounded-3xl p-6">
+            <section className="relative rounded-3xl p-[1px] bg-gradient-to-br from-rose-200/70 via-red-200/60 to-rose-200/70 shadow-lg shadow-red-200/40">
+              <div className="relative overflow-hidden rounded-3xl p-6 bg-white/30 backdrop-blur-xl border border-white/40">
+                <div className="pointer-events-none absolute -top-16 -left-16 w-72 h-72 bg-white/20 rounded-full blur-3xl"></div>
+
                 <div className="flex justify-between mb-4">
-                  <div><h2 className="text-xl font-semibold">Result</h2>
-                    <p>Score : {score}/{total} ({percent}%)</p></div>
-                  <button onClick={goHome} className="px-4 py-2 border rounded">Home</button>
+                  <div>
+                    <h2 className="text-xl font-semibold">Result</h2>
+                    <p>Score : {score}/{total} ({percent}%)</p>
+                    {percent >= 80 && <p className="text-sm text-teal-700 mt-1">Great job! 🎉</p>}
+                  </div>
+                  <button onClick={goHome} className={glassBtn()}>Home</button>
                 </div>
                 {activeSet.map((q,i)=>{
                   const sel=answers[i];const ok=sel===q.answer;
                   return(
-                    <div key={i} className="p-3 mb-3 border rounded">
-                      <div className="flex justify-between"><b>Q{i+1}. {q.question}</b>
-                        <span className={`text-xs px-2 py-1 rounded ${ok?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}`}>{ok?'Correct':'Incorrect'}</span></div>
+                    <div key={i} className="p-3 mb-3 border rounded bg-white/60 backdrop-blur">
+                      <div className="flex justify-between">
+                        <b>Q{i+1}. {q.question}</b>
+                        <span className={`text-xs px-2 py-1 rounded ${ok?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}`}>{ok?'Correct':'Incorrect'}</span>
+                      </div>
                       <p className="text-sm">Your: {sel||'Not answered'} | Correct: <b className="text-green-700">{q.answer}</b></p>
-                      {q.explanation && <p className="text-sm text-gray-600 mt-1">{q.explanation}</p>}
+                      {q.explanation && <p className="text-sm text-gray-700 mt-1">{q.explanation}</p>}
                     </div>
                   );
                 })}
