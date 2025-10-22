@@ -10,19 +10,22 @@ const shuffle = (arr) => { const a = arr.slice(); for (let i=a.length-1; i>0; i-
 const sampleN = (arr, n) => shuffle(arr).slice(0, n);
 const timeForQuestionsSec = (n) => Math.ceil(n * 1.2 * 60);
 
-/* ----------------- Background (Home + Result) ----------------- */
+/* ----------------- Background (Home + Result, oval left) ----------------- */
 function BackgroundImage() {
   return (
     <>
+      {/* Oval-shaped Ganesh on the left */}
       <div
         className="
-          pointer-events-none absolute inset-0
-          bg-[url('./ganesh.png')] bg-no-repeat bg-center bg-fixed
-          opacity-25
-          bg-[length:60vmin] sm:bg-[length:52vmin] md:bg-[length:48vmin] lg:bg-[length:44vmin] xl:bg-[length:40vmin]
+          pointer-events-none absolute left-0 top-1/2 -translate-y-1/2
+          w-[45vmin] h-[60vmin] sm:w-[40vmin] sm:h-[55vmin]
+          bg-[url('./ganesh.png')] bg-no-repeat bg-contain bg-left
+          opacity-25 rounded-[999px]
         "
-      />
-      <div className="absolute inset-0 bg-red-50/10" />
+      ></div>
+
+      {/* Gentle reddish wash */}
+      <div className="absolute inset-0 bg-red-50/10"></div>
     </>
   );
 }
@@ -36,7 +39,7 @@ const glassBtn = (extra="") =>
 const solidBtn = (extra="") =>
   `px-4 py-2 rounded-lg text-white shadow-md transform-gpu hover:scale-[1.03] active:scale-[0.99] ${extra}`;
 
-/* ----------------- Confetti (tiny, dependency-free) ----------------- */
+/* ----------------- Confetti (10s duration) ----------------- */
 function ConfettiBurst({ trigger }) {
   useEffect(() => {
     if (!trigger) return;
@@ -53,7 +56,7 @@ function ConfettiBurst({ trigger }) {
     resize();
     window.addEventListener('resize', resize);
 
-    const colors = ["#14b8a6","#f43f5e","#60a5fa","#a78bfa","#22c55e","#f59e0b"]; // teal, rose, blue, violet, green, amber
+    const colors = ["#14b8a6","#f43f5e","#60a5fa","#a78bfa","#22c55e","#f59e0b"];
     const N = Math.min(240, Math.floor((canvas.width + canvas.height) / 6));
     const gravity = 0.12, drag = 0.985;
     const cx = canvas.width/2, cy = canvas.height*0.15;
@@ -71,7 +74,7 @@ function ConfettiBurst({ trigger }) {
         vr: (Math.random()-0.5)*0.2,
         color: colors[(Math.random()*colors.length)|0],
         life: 0,
-        ttl: 120 + Math.random()*60
+        ttl: 250 + Math.random()*100 // longer lifetime
       };
     });
 
@@ -87,12 +90,8 @@ function ConfettiBurst({ trigger }) {
         p.y += p.vy;
         p.rot += p.vr;
         p.life++;
-
-        // alpha fades near end
         const alpha = Math.max(0, Math.min(1, 1 - (p.life / p.ttl)));
         ctx.globalAlpha = alpha;
-
-        // draw rectangle confetti
         ctx.save();
         ctx.translate(p.x, p.y);
         ctx.rotate(p.rot);
@@ -102,9 +101,11 @@ function ConfettiBurst({ trigger }) {
         ctx.globalAlpha = 1;
       });
 
-      // stop after most are done
-      if (frame < 180) { raf = requestAnimationFrame(tick); }
-      else cleanup();
+      if (frame < 600) { // ~10s
+        raf = requestAnimationFrame(tick);
+      } else {
+        cleanup();
+      }
     };
 
     const cleanup = () => {
@@ -120,9 +121,8 @@ function ConfettiBurst({ trigger }) {
   return null;
 }
 
-/* ----------------- UI pieces ----------------- */
+/* ----------------- TopBar & ProgressBar ----------------- */
 function TopBar({ page, onHome, total, attempted, mode, remainingSec }) {
-  const unattempted = Math.max(0, total - attempted);
   const mm = Math.floor(remainingSec/60);
   const ss = remainingSec%60;
   return (
@@ -130,9 +130,6 @@ function TopBar({ page, onHome, total, attempted, mode, remainingSec }) {
       <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
         <h1 className="text-base md:text-lg font-semibold">MCQ Practice – CUET PG Economics</h1>
         <div className="flex items-center gap-4 text-sm">
-          <span className="hidden md:inline text-gray-500">Total: <b>{total}</b></span>
-          <span className="hidden md:inline text-green-700">Attempted: <b>{attempted}</b></span>
-          <span className="hidden md:inline text-amber-700">Unattempted: <b>{unattempted}</b></span>
           {mode === 'test' && page === 'quiz' && (
             <span className={`px-2 py-1 rounded border ${remainingSec<=30 ? 'border-red-500 text-red-600' : 'border-gray-300 text-gray-700'}`}>
               ⏱ {String(mm).padStart(2,'0')}:{String(ss).padStart(2,'0')}
@@ -432,10 +429,11 @@ const App = () => {
                     {/* Spacer pushes right group */}
                     <div className="flex-1" />
 
-                    {/* RIGHT GROUP */}
+                    {/* RIGHT GROUP (stacked counters) */}
                     <div className="flex items-center gap-4">
-                      <div className="text-sm text-gray-700">
-                        Attempted: <b>{attempted}</b> &nbsp;|&nbsp; Unattempted: <b>{unattempted}</b>
+                      <div className="text-[13px] text-gray-700 text-right leading-tight">
+                        <div>Attempted: <b>{attempted}</b></div>
+                        <div className="mt-1">Unattempted: <b>{unattempted}</b></div>
                       </div>
 
                       {current < total - 1 ? (
