@@ -2,332 +2,477 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Economics MCQ Practice – CUET | DSE | JNU | UOH</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Economics MCQ Practice — Multi-Chapter Selector</title>
 
-  <!-- Tailwind + Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <!-- Tailwind CDN for quick prototyping -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: { poppins: ['Poppins', 'sans-serif'] },
-          colors: { primary: '#0ea5a4', muted: '#6b7280' }
-        }
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;background:#f7fafc}</style>
+</head>
+<body>
+  <div id="root" class="min-h-screen p-6"></div>
+
+  <!-- React + ReactDOM UMD -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- App (JSX via Babel) -->
+  <script type="text/babel">
+  const { useEffect, useMemo, useState } = React;
+
+  /*************************************************************************
+   * Replace `ALL_QUESTIONS` with your full combined JSON array (all chapters)
+   * Each item must follow:
+   * {
+   *   chapter: "Theory of Consumer Behaviour",
+   *   question: "Full question text",
+   *   options: ["A", "B", "C", "D"],
+   *   answer: "Correct option text (exact match to one of the options)",
+   *   explanation: "Short explanation",
+   *   source: "CUET 2019 Q5"
+   * }
+   *************************************************************************/
+  const ALL_QUESTIONS = [
+    // Small sample. Replace this array completely with your combined file.
+    {
+      chapter: "Theory of Consumer Behaviour",
+      question: "The concept of diminishing marginal rate of substitution implies that an indifference curve is:",
+      options: ["Concave to origin", "Convex to origin", "Straight line", "Right angle"],
+      answer: "Convex to origin",
+      explanation: "Diminishing MRS => convex IC.",
+      source: "JNU 2013 Q12"
+    },
+    {
+      chapter: "Theory of Demand & Elasticity",
+      question: "The Law of Demand states that, ceteris paribus, the quantity demanded of a good varies:",
+      options: ["Directly with its price", "Inversely with its price", "Independently of its price", "Proportionally with income"],
+      answer: "Inversely with its price",
+      explanation: "Higher price → lower quantity demanded, ceteris paribus.",
+      source: "CUET 2018 Q15"
+    },
+    {
+      chapter: "Theory of Production & Cost",
+      question: "The Law of Variable Proportions applies to the:",
+      options: ["Long run", "Short run", "Both long and short run", "Market level only"],
+      answer: "Short run",
+      explanation: "At least one input is fixed in short-run leading to variable proportions.",
+      source: "CUET 2019 Q26"
+    }
+    // ... replace with full dataset
+  ];
+
+  /******************************
+   * Utility helpers
+   ******************************/
+  function uniqueChapters(questions) {
+    const s = new Set(questions.map(q => q.chapter || "Uncategorized"));
+    return Array.from(s).sort();
+  }
+
+  function shuffleArray(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  /******************************
+   * Quiz Component
+   ******************************/
+  function QuizApp({ allQuestions }) {
+    const chaptersList = useMemo(() => uniqueChapters(allQuestions), [allQuestions]);
+    const [selectedChapters, setSelectedChapters] = useState(["All Chapters"]); // default
+    const [availableQuestions, setAvailableQuestions] = useState(allQuestions);
+    const [order, setOrder] = useState([]); // shuffled list of questions to show
+    const [index, setIndex] = useState(0);
+    const [selectedOption, setSelectedOption] = useState(null);
+    const [answers, setAnswers] = useState({}); // index -> option text
+    const [showReview, setShowReview] = useState(false);
+    const [timerOn, setTimerOn] = useState(false);
+    const [timeLeft, setTimeLeft] = useState(0);
+
+    // Manage select all / individual chapters
+    useEffect(() => {
+      // compute availableQuestions based on selectedChapters
+      if (selectedChapters.includes("All Chapters") || selectedChapters.length === 0) {
+        setAvailableQuestions(allQuestions);
+      } else {
+        const filtered = allQuestions.filter(q => selectedChapters.includes(q.chapter));
+        setAvailableQuestions(filtered);
+      }
+    }, [selectedChapters, allQuestions]);
+
+    // Whenever availableQuestions changes, create shuffled order and reset state
+    useEffect(() => {
+      const arr = availableQuestions.map((q, i) => ({ ...q, _uid: i }));
+      setOrder(shuffleArray(arr));
+      setIndex(0);
+      setSelectedOption(null);
+      setAnswers({});
+      setShowReview(false);
+      setTimerOn(false);
+      setTimeLeft(0);
+    }, [availableQuestions]);
+
+    // timer tick
+    useEffect(() => {
+      let t;
+      if (timerOn && timeLeft > 0) {
+        t = setTimeout(() => setTimeLeft(s => s - 1), 1000);
+      }
+      if (timerOn && timeLeft === 0) {
+        setTimerOn(false);
+        setShowReview(true);
+      }
+      return () => clearTimeout(t);
+    }, [timerOn, timeLeft]);
+
+    // selection handler for <select multiple>
+    function onChapterSelect(e) {
+      const opts = Array.from(e.target.selectedOptions).map(o => o.value);
+      // if user includes "All Chapters", treat as select all
+      if (opts.includes("All Chapters")) {
+        setSelectedChapters(["All Chapters"]);
+      } else {
+        setSelectedChapters(opts);
       }
     }
-  </script>
 
-  <!-- React + Babel (no "env" preset) -->
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <style>body{font-family:'Poppins',sans-serif}</style>
-</head>
-
-<body class="bg-white text-gray-800">
-  <div id="root" class="min-h-screen"></div>
-
-  <script type="text/babel" data-presets="react">
-    const { useEffect, useMemo, useState } = React;
-
-    function TopBar({ page, onHome, total, attempted }) {
-      const unattempted = Math.max(0, total - attempted);
-      return (
-        <header className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b">
-          <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-            <h1 className="text-base md:text-lg font-semibold">Economics MCQ Practice</h1>
-            <div className="flex items-center gap-3 text-sm">
-              <span className="hidden md:inline text-muted">Total: <b>{total}</b></span>
-              <span className="hidden md:inline text-green-700">Attempted: <b>{attempted}</b></span>
-              <span className="hidden md:inline text-amber-700">Unattempted: <b>{unattempted}</b></span>
-              {page !== 'home' && (
-                <button
-                  onClick={onHome}
-                  className="px-3 py-1.5 rounded-lg border hover:bg-gray-50"
-                  aria-label="Go to Home"
-                >
-                  Home
-                </button>
-              )}
-            </div>
-          </div>
-        </header>
-      );
+    // helper to toggle specific chapter via chips/buttons
+    function toggleChapter(c) {
+      if (selectedChapters.includes("All Chapters")) {
+        setSelectedChapters([c]);
+        return;
+      }
+      if (selectedChapters.includes(c)) {
+        const rest = selectedChapters.filter(x => x !== c);
+        setSelectedChapters(rest.length ? rest : ["All Chapters"]);
+      } else {
+        setSelectedChapters(prev => [...prev, c]);
+      }
     }
 
-    function ProgressBar({ currentIndex, total }) {
-      const pct = total ? Math.round(((currentIndex + 1) / total) * 100) : 0;
+    if (!order.length) {
       return (
-        <div className="w-full bg-gray-200/70 h-2 rounded-full">
-          <div className="bg-primary h-2 rounded-full transition-all" style={{ width: pct + '%' }} />
+        <div className="max-w-4xl mx-auto">
+          <Header />
+          <div className="bg-white p-6 rounded shadow mt-6">
+            <h2 className="text-lg font-semibold mb-2">No questions available</h2>
+            <p className="text-gray-600">Check your JSON dataset or selection.</p>
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Chapters detected</label>
+              <div className="flex flex-wrap gap-2">
+                {chaptersList.map(c => (
+                  <div key={c} className="px-3 py-1 bg-gray-100 rounded text-sm">{c}</div>
+                ))}
+              </div>
+            </div>
+            <div className="mt-4 text-xs text-gray-500">Replace the sample `ALL_QUESTIONS` with your combined JSON (all chapters).</div>
+          </div>
         </div>
       );
     }
 
-    const App = () => {
-      const [page, setPage] = useState('home');          // 'home' | 'quiz' | 'result'
-      const [questions, setQuestions] = useState([]);    // loaded from questions.json
-      const [current, setCurrent] = useState(0);
-      const [answers, setAnswers] = useState({});        // { [index]: optionText }
-      const [loading, setLoading] = useState(true);
-      const [error, setError] = useState('');
+    const current = order[index];
+    const total = order.length;
+    const progressPercent = Math.round(((index + 1) / total) * 100);
 
-      // Load external JSON (cache-bust to avoid stale file on GitHub Pages)
-      useEffect(() => {
-        setLoading(true);
-        fetch('questions.json?v=' + Date.now())
-          .then(r => {
-            if (!r.ok) throw new Error('Failed to load questions.json');
-            return r.json();
-          })
-          .then(data => {
-            setQuestions(Array.isArray(data) ? data : []);
-            setLoading(false);
-          })
-          .catch(err => {
-            console.error(err);
-            setError('Could not load questions.json');
-            setLoading(false);
-          });
-      }, []);
+    function recordAndNext() {
+      if (selectedOption == null) {
+        alert("Please select an option before proceeding.");
+        return;
+      }
+      setAnswers(a => ({ ...a, [index]: selectedOption }));
+      setSelectedOption(null);
+      if (index < total - 1) setIndex(index + 1);
+      else setShowReview(true);
+    }
 
-      const total = questions.length;
-      const attempted = useMemo(
-        () => Object.keys(answers).filter(k => answers[k] !== undefined && answers[k] !== null).length,
-        [answers]
-      );
-      const unattempted = Math.max(0, total - attempted);
+    function prev() {
+      if (index === 0) return;
+      setIndex(index - 1);
+      setSelectedOption(answers[index - 1] ?? null);
+    }
 
-      // Home, Quiz, Result navigation
-      const goHome = () => { setPage('home'); setCurrent(0); };
-      const startTest = () => { setPage('quiz'); setCurrent(0); window.scrollTo(0,0); };
+    function submitNow() {
+      if (selectedOption != null) {
+        setAnswers(a => ({ ...a, [index]: selectedOption }));
+        setSelectedOption(null);
+      }
+      setShowReview(true);
+      setTimerOn(false);
+    }
 
-      // Quiz handlers
-      const handleSelect = (opt) => {
-        setAnswers(prev => ({ ...prev, [current]: opt }));
-      };
-      const next = () => { if (current < total - 1) setCurrent(c => c + 1); };
-      const prev = () => { if (current > 0) setCurrent(c => c - 1); };
-      const submit = () => setPage('result');
+    function restart(reShuffle = true) {
+      setIndex(0);
+      setSelectedOption(null);
+      setAnswers({});
+      setShowReview(false);
+      setTimerOn(false);
+      setTimeLeft(0);
+      if (reShuffle) setOrder(shuffleArray(order));
+    }
 
-      // Result
-      const score = useMemo(() => {
-        let s = 0;
-        questions.forEach((q, i) => {
-          if (answers[i] === q.answer) s++;
+    // results
+    const correctCount = Object.keys(answers).reduce((acc, k) => {
+      const idx = Number(k);
+      const chosen = answers[idx];
+      const correct = order[idx].answer;
+      return acc + (chosen === correct ? 1 : 0);
+    }, 0);
+    const scorePercent = Math.round((correctCount / total) * 100);
+
+    // save attempt when showReview first becomes true
+    useEffect(() => {
+      if (showReview) {
+        const history = JSON.parse(localStorage.getItem("econ_quiz_history") || "[]");
+        history.unshift({
+          date: new Date().toISOString(),
+          chapters: selectedChapters,
+          total,
+          correct: correctCount,
+          percent: scorePercent
         });
-        return s;
-      }, [answers, questions]);
-      const percent = total ? Math.round((score / total) * 100) : 0;
-
-      // UI states
-      if (loading) {
-        return (
-          <>
-            <TopBar page={page} onHome={goHome} total={0} attempted={0} />
-            <main className="max-w-5xl mx-auto px-4 py-10">
-              <div className="text-center text-lg text-gray-500">Loading questions…</div>
-            </main>
-          </>
-        );
+        localStorage.setItem("econ_quiz_history", JSON.stringify(history.slice(0, 20)));
       }
-      if (error) {
-        return (
-          <>
-            <TopBar page={page} onHome={goHome} total={0} attempted={0} />
-            <main className="max-w-5xl mx-auto px-4 py-10">
-              <div className="text-center text-red-600">{error}</div>
-              <p className="text-center text-sm text-muted mt-2">Make sure <code>questions.json</code> is in the same folder as <code>index.html</code>.</p>
-            </main>
-          </>
-        );
-      }
+    }, [showReview]); // eslint-disable-line
 
-      // HOME
-      if (page === 'home') {
-        // collect unique chapter names from JSON
-        const chapters = [...new Set(questions.map(q => q.chapter).filter(Boolean))];
-        return (
-          <>
-            <TopBar page={page} onHome={goHome} total={total} attempted={attempted} />
-            <main className="max-w-5xl mx-auto px-4 py-10">
-              <section className="bg-white rounded-2xl shadow p-6">
-                <h2 className="text-2xl font-semibold">Economics MCQ Practice – CUET | DSE | JNU | UOH</h2>
-                <p className="text-muted mt-1">Practice chapter-wise Economics PYQs with instant feedback.</p>
+    return (
+      <div className="max-w-5xl mx-auto">
+        <Header />
 
-                <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="p-4 rounded-xl border bg-gray-50">
-                    <div className="text-xs text-muted">Total Questions</div>
-                    <div className="text-2xl font-bold">{total}</div>
-                  </div>
-                  <div className="p-4 rounded-xl border bg-green-50">
-                    <div className="text-xs text-green-700">Attempted</div>
-                    <div className="text-2xl font-bold text-green-700">{attempted}</div>
-                  </div>
-                  <div className="p-4 rounded-xl border bg-amber-50">
-                    <div className="text-xs text-amber-700">Unattempted</div>
-                    <div className="text-2xl font-bold text-amber-700">{unattempted}</div>
+        {/* Selection area */}
+        <div className="bg-white p-5 rounded shadow mt-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold">Select Chapters</h2>
+              <p className="text-sm text-gray-600">Choose one or multiple chapters (Ctrl/Cmd + click or use checkboxes below). Use "All Chapters" to include everything.</p>
+            </div>
+
+            <div className="flex gap-3 items-center">
+              <select
+                multiple
+                size={Math.min(8, chaptersList.length + 1)}
+                value={selectedChapters}
+                onChange={onChapterSelect}
+                className="border p-2 rounded w-72"
+              >
+                <option value="All Chapters">All Chapters</option>
+                {chaptersList.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+
+              <div className="flex flex-col gap-2">
+                <button
+                  className="px-3 py-2 bg-blue-600 text-white rounded"
+                  onClick={() => {
+                    // apply selection by re-setting availableQuestions via effect
+                    if (selectedChapters.includes("All Chapters")) setSelectedChapters(["All Chapters"]);
+                    setOrder(shuffleArray(availableQuestionsFromSelected(allQuestions, selectedChapters)));
+                    setIndex(0);
+                  }}
+                >
+                  Apply
+                </button>
+                <button
+                  className="px-3 py-2 border rounded"
+                  onClick={() => setSelectedChapters(["All Chapters"])}
+                >
+                  Select All
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* quick chips to toggle */}
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              className={`px-3 py-1 text-sm rounded ${selectedChapters.includes("All Chapters") ? "bg-blue-600 text-white" : "bg-gray-100"}`}
+              onClick={() => setSelectedChapters(["All Chapters"])}
+            >
+              All Chapters
+            </button>
+            {chaptersList.map(c => (
+              <button
+                key={c}
+                onClick={() => toggleChapter(c)}
+                className={`px-3 py-1 text-sm rounded ${selectedChapters.includes(c) ? "bg-green-600 text-white" : "bg-gray-100"}`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Quiz area */}
+        <div className="bg-white p-6 rounded shadow mt-6">
+          {!showReview ? (
+            <>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold">Question {index + 1} / {total}</h3>
+                  <div className="text-xs text-gray-600">Chapters: {selectedChapters.includes("All Chapters") ? "All Chapters" : selectedChapters.join(", ")}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm">Progress</div>
+                  <div className="w-48 h-2 bg-gray-200 rounded overflow-hidden">
+                    <div className="h-2 bg-indigo-500" style={{ width: `${progressPercent}%` }} />
                   </div>
                 </div>
-
-                {chapters.length > 0 && (
-                  <div className="mt-6">
-                    <div className="text-sm text-muted mb-2">Chapters included:</div>
-                    <div className="flex flex-wrap gap-2">
-                      {chapters.map((c, i) => (
-                        <span key={i} className="px-2.5 py-1 rounded-full bg-gray-100 text-xs">{c}</span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div className="mt-8">
-                  <button className="bg-primary text-white px-5 py-2.5 rounded-lg shadow hover:opacity-95"
-                          onClick={startTest}>
-                    Start Test
-                  </button>
-                </div>
-              </section>
-            </main>
-          </>
-        );
-      }
-
-      // QUIZ
-      if (page === 'quiz') {
-        const q = questions[current];
-        const sel = answers[current];
-
-        return (
-          <>
-            <TopBar page={page} onHome={goHome} total={total} attempted={attempted} />
-            <main className="max-w-5xl mx-auto px-4 py-6">
-              <div className="mb-3 flex items-center justify-between gap-4">
-                <div className="text-sm text-muted">Question {current + 1} of {total}</div>
-                <div className="w-1/2"><ProgressBar currentIndex={current} total={total} /></div>
               </div>
 
-              <section className="bg-white rounded-2xl shadow p-6">
-                <div className="mb-2 text-xs uppercase tracking-wide text-muted">Chapter</div>
-                <div className="mb-4 text-base font-medium">{q.chapter || '—'}</div>
+              <div className="p-4 border rounded">
+                <div className="text-base font-medium mb-4">{current.question}</div>
 
-                <h3 className="text-lg font-semibold leading-relaxed">{q.question}</h3>
-                {q.source && <div className="mt-1 text-xs text-muted">Source: {q.source}</div>}
-
-                <div className="mt-5 grid gap-3">
-                  {q.options.map((opt, idx) => {
-                    const active = sel === opt;
+                <div className="grid gap-3">
+                  {current.options.map((opt, i) => {
+                    const isSel = selectedOption === opt;
                     return (
-                      <label key={idx}
-                        className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition
-                                   ${active ? 'border-primary bg-primary/10' : 'hover:bg-gray-50'}`}>
-                        <input
-                          type="radio"
-                          name={`q-${current}`}
-                          className="accent-teal-500"
-                          checked={active}
-                          onChange={() => handleSelect(opt)}
-                        />
-                        <span className="font-medium">{String.fromCharCode(65 + idx)}.</span>
-                        <span>{opt}</span>
+                      <label key={i} className={`flex items-center gap-3 p-3 border rounded cursor-pointer ${isSel ? "border-indigo-500 bg-indigo-50" : "hover:bg-gray-50"}`}>
+                        <input type="radio" name="opt" checked={isSel} onChange={() => setSelectedOption(opt)} />
+                        <div>{opt}</div>
                       </label>
                     );
                   })}
                 </div>
 
-                <div className="mt-6 flex items-center justify-between">
-                  <button onClick={prev} disabled={current === 0}
-                          className="px-4 py-2 rounded-lg border disabled:opacity-50">Previous</button>
+                <div className="mt-4 flex justify-between">
+                  <button onClick={prev} disabled={index === 0} className="px-4 py-2 border rounded disabled:opacity-50">Previous</button>
 
-                  <div className="text-sm text-muted">
-                    Attempted: <b>{attempted}</b> &nbsp;|&nbsp; Unattempted: <b>{unattempted}</b>
-                  </div>
-
-                  {current < total - 1 ? (
-                    <button onClick={next}
-                            className="px-4 py-2 rounded-lg bg-primary text-white">Next</button>
-                  ) : (
-                    <button onClick={submit}
-                            className="px-4 py-2 rounded-lg bg-green-600 text-white">Submit</button>
-                  )}
-                </div>
-              </section>
-            </main>
-          </>
-        );
-      }
-
-      // RESULT
-      if (page === 'result') {
-        return (
-          <>
-            <TopBar page={page} onHome={goHome} total={total} attempted={attempted} />
-            <main className="max-w-5xl mx-auto px-4 py-8">
-              <section className="bg-white rounded-2xl shadow p-6">
-                <div className="flex flex-wrap items-end justify-between gap-4">
-                  <div>
-                    <h2 className="text-xl font-semibold">Results</h2>
-                    <p className="text-sm text-muted mt-1">
-                      Score: <b>{score}</b> / {total} &nbsp;({Math.round((score/total)*100)}%)
-                    </p>
-                    <p className="text-sm text-muted mt-1">
-                      Attempted: <b>{attempted}</b> &nbsp;|&nbsp; Unattempted: <b>{unattempted}</b>
-                    </p>
-                  </div>
                   <div className="flex gap-2">
-                    <button className="px-4 py-2 rounded-lg border" onClick={goHome}>Home</button>
-                    <button className="px-4 py-2 rounded-lg bg-primary text-white"
-                            onClick={() => { setPage('quiz'); setCurrent(0); }}>
-                      Review
-                    </button>
+                    <button onClick={() => { setTimeLeft(20 * 60); setTimerOn(true); }} className="px-3 py-2 border rounded">Start 20m Timer</button>
+                    <button onClick={submitNow} className="px-4 py-2 border rounded">Submit</button>
+                    <button onClick={recordAndNext} className="px-4 py-2 bg-green-600 text-white rounded">{index === total - 1 ? "Finish" : "Next"}</button>
                   </div>
                 </div>
 
-                <hr className="my-6"/>
-
-                <div className="space-y-5">
-                  {questions.map((q, i) => {
-                    const sel = answers[i];
-                    const correct = sel === q.answer;
-                    return (
-                      <div key={i} className="p-4 border rounded-xl">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="text-sm text-muted">
-                            <div className="uppercase tracking-wide text-xs">Chapter</div>
-                            <div className="font-medium">{q.chapter || '—'}</div>
-                          </div>
-                          <div className={`px-2 py-1 rounded text-xs ${correct ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                            {correct ? 'Correct' : 'Incorrect'}
-                          </div>
-                        </div>
-
-                        <div className="mt-2 font-semibold">Q{i+1}. {q.question}</div>
-                        <div className="mt-2 text-sm">
-                          Your answer: <b>{sel ?? 'Not answered'}</b> &nbsp;|&nbsp; Correct: <b className="text-green-700">{q.answer}</b>
-                        </div>
-                        {q.explanation && (
-                          <div className="mt-3 text-sm p-3 rounded bg-gray-50">
-                            <div className="font-medium mb-1">Explanation</div>
-                            <p className="text-muted">{q.explanation}</p>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                <div className="mt-3 text-xs text-gray-500 flex justify-between">
+                  <div>Source: {current.source ?? "Unknown"}</div>
+                  <div>{timerOn ? `Time left: ${Math.floor(timeLeft/60)}:${String(timeLeft%60).padStart(2,'0')}` : ""}</div>
                 </div>
-              </section>
-            </main>
-          </>
-        );
-      }
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="mb-4">
+                <h3 className="text-xl font-semibold">Result</h3>
+                <p className="text-sm text-gray-600">Score: <strong>{correctCount} / {total}</strong> ({scorePercent}%)</p>
+                <div className="mt-2 flex gap-2">
+                  <button onClick={() => restart()} className="px-3 py-2 border rounded">Retry</button>
+                  <button onClick={() => setShowReview(false)} className="px-3 py-2 border rounded">Back</button>
+                </div>
+              </div>
 
-      return null;
-    };
+              <div className="space-y-4">
+                {order.map((q, i) => {
+                  const user = answers[i];
+                  const correct = q.answer;
+                  const isCorrect = user === correct;
+                  return (
+                    <article key={i} className="p-4 border rounded bg-gray-50">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <div className="font-medium">Q{i + 1}. {q.question}</div>
+                          <div className="text-xs text-gray-500">Chapter: {q.chapter} • Source: {q.source}</div>
+                        </div>
+                        <div className={`px-2 py-1 rounded text-sm ${isCorrect ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+                          {isCorrect ? "Correct" : "Wrong"}
+                        </div>
+                      </div>
 
-    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+                      <div className="mt-3 grid gap-2">
+                        {q.options.map((o, idx) => {
+                          const right = o === correct;
+                          const chosen = o === user;
+                          return (
+                            <div key={idx} className={`p-2 rounded ${right ? "border-green-300 bg-white" : chosen ? "border-blue-200 bg-blue-50" : "bg-white border border-gray-100"}`}>
+                              <div className="flex justify-between">
+                                <div>{o}</div>
+                                {right && <div className="text-xs font-semibold text-green-700">Answer</div>}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <div className="mt-2 text-sm text-gray-700"><strong>Explanation:</strong> {q.explanation}</div>
+                    </article>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* History */}
+        <div className="bg-white p-4 rounded shadow mt-6">
+          <h4 className="font-semibold mb-2">Recent Attempts</h4>
+          <AttemptsList />
+        </div>
+
+        <div className="text-xs text-gray-500 mt-4">Tip: Replace the sample `ALL_QUESTIONS` array near the top with your full combined JSON (all chapters). The app will detect chapters automatically.</div>
+      </div>
+    );
+  }
+
+  /******************************
+   * Simple Header and AttemptsList
+   ******************************/
+  function Header() {
+    return (
+      <header className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Economics MCQ Practice</h1>
+          <div className="text-sm text-gray-600">Select one or more chapters, practice PYQs, and review answers with explanations.</div>
+        </div>
+        <div className="text-sm text-gray-500">Local (no server). Attempts saved in browser.</div>
+      </header>
+    );
+  }
+
+  function AttemptsList() {
+    const [history, setHistory] = useState(() => JSON.parse(localStorage.getItem("econ_quiz_history") || "[]"));
+    useEffect(() => {
+      const h = JSON.parse(localStorage.getItem("econ_quiz_history") || "[]");
+      setHistory(h);
+    }, []);
+    if (!history.length) return <div className="text-sm text-gray-600">No attempts yet.</div>;
+    return (
+      <div className="grid gap-2">
+        {history.map((h, i) => (
+          <div key={i} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+            <div className="text-sm">
+              <div><strong>{h.chapters && h.chapters.includes("All Chapters") ? "All Chapters" : h.chapters.join(", ")}</strong></div>
+              <div className="text-xs text-gray-500">{new Date(h.date).toLocaleString()}</div>
+            </div>
+            <div className="text-sm">
+              <div><strong>{h.correct}/{h.total}</strong></div>
+              <div className="text-xs text-gray-500">{h.percent}%</div>
+            </div>
+          </div>
+        ))}
+        <div className="mt-2">
+          <button onClick={() => { localStorage.removeItem("econ_quiz_history"); location.reload(); }} className="px-3 py-1 border rounded text-xs">Clear History</button>
+        </div>
+      </div>
+    );
+  }
+
+  /******************************
+   * Helper to compute availableQuestions for Apply button
+   ******************************/
+  function availableQuestionsFromSelected(allQ, selectedChapters) {
+    if (selectedChapters.includes("All Chapters") || selectedChapters.length === 0) return allQ;
+    return allQ.filter(q => selectedChapters.includes(q.chapter));
+  }
+
+  /******************************
+   * Render
+   ******************************/
+  ReactDOM.createRoot(document.getElementById('root')).render(<QuizApp allQuestions={ALL_QUESTIONS} />);
   </script>
 </body>
 </html>
-
