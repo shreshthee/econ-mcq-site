@@ -278,7 +278,8 @@ const App = () => {
         <TopBar page={page} onHome={goHome} total={questions.length} attempted={0} mode={mode} remainingSec={0}/>
         <main className="max-w-6xl mx-auto px-4 py-10 space-y-8">
           <section className="bg-white rounded-2xl shadow p-6">
-            <h2 className="text-2xl font-semibold">Economics MCQ Practice – CUET | DSE | JNU | UOH</h2>
+            <h1 className="text-2xl font-semibold">MCQ Practice – CUET PG Economics</h1>
+
             <p className="text-muted mt-1">Practice chapter-wise Economics PYQs with instant feedback.</p>
 
             <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
