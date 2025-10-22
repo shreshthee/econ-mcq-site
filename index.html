@@ -12,12 +12,13 @@
       theme: {
         extend: {
           fontFamily: { poppins: ['Poppins', 'sans-serif'] },
-          colors: { primary: '#0ea5a4', muted: '#6b7280' }
+          colors: { primary: '#0ea5a4' }
         }
       }
     }
   </script>
 
+  <!-- React + Babel -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -25,7 +26,7 @@
 <body class="bg-white text-gray-800 font-poppins">
   <div id="root" class="min-h-screen flex items-center justify-center p-4"></div>
 
-  <!-- React App -->
+  <!-- IMPORTANT: only 'react' preset -->
   <script type="text/babel" data-presets="react" src="main.jsx"></script>
 </body>
 </html>
