@@ -8,11 +8,11 @@
     "source": "JNU 2013 Q12"
   },
   {
-    "chapter": "National Income",
-    "question": "Which of the following is not a component of GDP?",
-    "options": ["Investment", "Government Spending", "Exports", "Transfer Payments"],
-    "answer": "Transfer Payments",
-    "explanation": "GDP measures production of goods and services; transfer payments don’t involve production.",
-    "source": "CUET 2022 Q18"
+    "chapter": "Market Structures",
+    "question": "In perfect competition, firms are price takers because:",
+    "options": ["Each firm is large", "There are barriers", "Products are homogeneous", "Firms collude"],
+    "answer": "Products are homogeneous",
+    "explanation": "With identical products and many sellers, no single firm can influence price.",
+    "source": "CUET 2019"
   }
 ]
