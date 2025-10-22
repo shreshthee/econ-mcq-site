@@ -1,18 +1,149 @@
 [
+  
   {
     "chapter": "Theory of Consumer Behaviour",
-    "question": "The concept of diminishing MRS implies that the indifference curve is:",
-    "options": ["Concave to origin", "Convex to origin", "Straight line", "Right angle"],
-    "answer": "Convex to origin",
-    "explanation": "As substitution continues, the consumer gives up fewer units of one good for another, hence convex IC.",
-    "source": "JNU 2013 Q12"
+    "question": "When the price of a commodity falls and the consumer moves to a higher indifference curve, it indicates a:",
+    "options": ["Substitution effect only", "Income effect only", "Substitution and income effects combined", "No effect"],
+    "answer": "Substitution and income effects combined",
+    "explanation": "A price fall makes the good cheaper (substitution effect) and raises real income (income effect).",
+    "source": "CUET 2021 Q14"
   },
   {
-    "chapter": "Market Structures",
-    "question": "In perfect competition, firms are price takers because:",
-    "options": ["Each firm is large", "There are barriers", "Products are homogeneous", "Firms collude"],
-    "answer": "Products are homogeneous",
-    "explanation": "With identical products and many sellers, no single firm can influence price.",
-    "source": "CUET 2019"
+    "chapter": "Theory of Consumer Behaviour",
+    "question": "In the case of perfect substitutes, indifference curves are:",
+    "options": ["Right angles", "Parallel straight lines with negative slope", "Convex to the origin", "Upward sloping"],
+    "answer": "Parallel straight lines with negative slope",
+    "explanation": "Perfect substitutes have a constant MRS, resulting in linear, parallel indifference curves.",
+    "source": "JNU 2016 Q9"
+  },
+  {
+    "chapter": "Theory of Consumer Behaviour",
+    "question": "For perfect complements, indifference curves are:",
+    "options": ["Convex to origin", "Concave to origin", "L-shaped", "Straight lines"],
+    "answer": "L-shaped",
+    "explanation": "Perfect complements are consumed in fixed proportions, producing right-angle ICs.",
+    "source": "CUET 2018 Q18"
+  },
+  {
+    "chapter": "Theory of Consumer Behaviour",
+    "question": "If a consumer’s indifference curve is a straight line, it implies:",
+    "options": ["Perfect complements", "Perfect substitutes", "Independent goods", "Inferior goods"],
+    "answer": "Perfect substitutes",
+    "explanation": "A straight-line IC means a constant MRS; goods are perfect substitutes.",
+    "source": "DSE 2017 Q12"
+  },
+  {
+    "chapter": "Theory of Consumer Behaviour",
+    "question": "The consumer equilibrium under the indifference curve approach is given by:",
+    "options": ["Slope of IC = Slope of budget line", "Slope of IC > Slope of budget line", "Slope of IC < Slope of budget line", "IC tangent to price consumption curve"],
+    "answer": "Slope of IC = Slope of budget line",
+    "explanation": "At equilibrium, MRS = price ratio; the budget line is tangent to the highest IC.",
+    "source": "CUET 2019 Q16"
+  },
+  {
+    "chapter": "Theory of Consumer Behaviour",
+    "question": "The indifference curve approach assumes:",
+    "options": ["Cardinal utility", "Ordinal utility", "Constant marginal utility of money", "Decreasing marginal utility of money"],
+    "answer": "Ordinal utility",
+    "explanation": "Consumers rank bundles by preference order without measuring utility numerically.",
+    "source": "JNU 2014 Q10"
+  },
+  {
+    "chapter": "Theory of Consumer Behaviour",
+    "question": "If the marginal utility of X is 4 and its price is 2, while marginal utility of Y is 10 and its price is 5, then the consumer is:",
+    "options": ["In equilibrium", "Not in equilibrium", "Indifferent", "At maximum satisfaction"],
+    "answer": "In equilibrium",
+    "explanation": "MUx/Px = 4/2 = 2; MUy/Py = 10/5 = 2. Equal ratios imply equilibrium.",
+    "source": "CUET 2022 Q15"
+  },
+  {
+    "chapter": "Theory of Consumer Behaviour",
+    "question": "A consumer’s preferences are monotonic if:",
+    "options": ["He prefers less of every good", "He is indifferent to quantity", "More of a good is always preferred to less", "Utility is constant for all bundles"],
+    "answer": "More of a good is always preferred to less",
+    "explanation": "Monotonic preferences imply non-satiation—more of any good is preferred.",
+    "source": "DSE 2016 Q18"
+  },
+  {
+    "chapter": "Theory of Consumer Behaviour",
+    "question": "The price-consumption curve shows how equilibrium changes when:",
+    "options": ["Income changes", "Price of one good changes, income constant", "Both prices change proportionally", "Utility changes"],
+    "answer": "Price of one good changes, income constant",
+    "explanation": "PCC traces successive equilibrium points as the price of one good varies.",
+    "source": "CUET 2020 Q16"
+  },
+  {
+    "chapter": "Theory of Consumer Behaviour",
+    "question": "If income rises and the quantity demanded of good X falls, the good is:",
+    "options": ["Normal", "Inferior", "Complementary", "Giffen"],
+    "answer": "Inferior",
+    "explanation": "Inferior goods have negative income elasticity; demand decreases as income rises.",
+    "source": "DSE 2018 Q16"
+  },
+  {
+    "chapter": "Theory of Consumer Behaviour",
+    "question": "The income-consumption curve connects points of equilibrium for:",
+    "options": ["Different prices of X", "Different income levels", "Different indifference curves at constant income", "Different preferences"],
+    "answer": "Different income levels",
+    "explanation": "The ICC shows how equilibrium changes as income varies at constant prices.",
+    "source": "JNU 2015 Q13"
+  },
+  {
+    "chapter": "Theory of Consumer Behaviour",
+    "question": "If the income-consumption curve slopes upward to the right, both goods are:",
+    "options": ["Normal", "Inferior", "Giffen", "Perfect substitutes"],
+    "answer": "Normal",
+    "explanation": "Upward-sloping ICC means consumption of both goods increases with income.",
+    "source": "CUET 2018 Q27"
+  },
+  {
+    "chapter": "Theory of Consumer Behaviour",
+    "question": "When a consumer’s equilibrium lies on a lower indifference curve after an income change, it indicates:",
+    "options": ["Fall in real income", "Rise in money income", "Decrease in prices", "Improvement in welfare"],
+    "answer": "Fall in real income",
+    "explanation": "A lower IC shows lower utility—real income or purchasing power has decreased.",
+    "source": "DSE 2017 Q16"
+  },
+  {
+    "chapter": "Theory of Consumer Behaviour",
+    "question": "The substitution effect of a price decrease for a normal good is always:",
+    "options": ["Negative", "Positive", "Zero", "Indeterminate"],
+    "answer": "Positive",
+    "explanation": "A fall in price makes the good cheaper relative to others, raising quantity demanded.",
+    "source": "CUET 2019 Q20"
+  },
+  {
+    "chapter": "Theory of Consumer Behaviour",
+    "question": "For a Giffen good, which of the following is true?",
+    "options": ["Income effect > Substitution effect (positive)", "Substitution effect > Income effect (negative)", "Negative income effect > Positive substitution effect", "Both effects positive"],
+    "answer": "Negative income effect > Positive substitution effect",
+    "explanation": "In a Giffen good, the negative income effect dominates, leading to upward-sloping demand.",
+    "source": "JNU 2016 Q11"
+  },
+  {
+    "chapter": "Theory of Consumer Behaviour",
+    "question": "When a fall in the price of X increases real income, the income effect is:",
+    "options": ["Negative", "Positive", "Zero", "Infinite"],
+    "answer": "Positive",
+    "explanation": "A price fall raises real purchasing power, enabling greater consumption.",
+    "source": "CUET 2021 Q16"
+  },
+  {
+    "chapter": "Theory of Consumer Behaviour",
+    "question": "The Engel curve shows the relationship between:",
+    "options": ["Price and quantity demanded", "Income and quantity demanded", "Utility and price", "Substitution and income effects"],
+    "answer": "Income and quantity demanded",
+    "explanation": "Engel curve traces how demand for a good changes as income changes.",
+    "source": "DSE 2019 Q18"
+  },
+  {
+    "chapter": "Theory of Consumer Behaviour",
+    "question": "In revealed-preference theory, a 'strong ordering' implies that:",
+    "options": ["The consumer prefers one bundle strictly to another", "The consumer is indifferent between bundles", "Both bundles are unaffordable", "Utility is cardinally measurable"],
+    "answer": "The consumer prefers one bundle strictly to another",
+    "explanation": "Strong ordering means A is strictly preferred to B when both are affordable.",
+    "source": "CUET 2022 Q19"
   }
+
+
 ]
