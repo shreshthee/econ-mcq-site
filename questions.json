@@ -143,7 +143,201 @@
     "answer": "The consumer prefers one bundle strictly to another",
     "explanation": "Strong ordering means A is strictly preferred to B when both are affordable.",
     "source": "CUET 2022 Q19"
+  },
+  {
+    "chapter": "Theory of Demand & Elasticity",
+    "question": "The Law of Demand states that, ceteris paribus, the quantity demanded of a good varies:",
+    "options": ["Directly with its price", "Inversely with its price", "Independently of its price", "Proportionally with income"],
+    "answer": "Inversely with its price",
+    "explanation": "When the price rises, quantity demanded falls, and vice versa, assuming other factors remain constant.",
+    "source": "CUET 2018 Q15"
+  },
+  {
+    "chapter": "Theory of Demand & Elasticity",
+    "question": "The demand curve for a Giffen good is:",
+    "options": ["Downward sloping", "Upward sloping", "Horizontal", "Vertical"],
+    "answer": "Upward sloping",
+    "explanation": "For Giffen goods, the negative income effect outweighs the substitution effect, causing demand to rise with price.",
+    "source": "DSE 2017 Q19"
+  },
+  {
+    "chapter": "Theory of Demand & Elasticity",
+    "question": "Price elasticity of demand measures:",
+    "options": ["Change in income with respect to demand", "Change in demand with respect to supply", "Responsiveness of quantity demanded to changes in price", "Slope of demand curve"],
+    "answer": "Responsiveness of quantity demanded to changes in price",
+    "explanation": "It shows how sensitive consumers are to price changes.",
+    "source": "JNU 2014 Q22"
+  },
+  {
+    "chapter": "Theory of Demand & Elasticity",
+    "question": "If the price of tea rises and demand for coffee increases, the two goods are:",
+    "options": ["Complements", "Substitutes", "Inferior goods", "Unrelated goods"],
+    "answer": "Substitutes",
+    "explanation": "Positive cross elasticity indicates that the goods can replace each other.",
+    "source": "CUET 2019 Q24"
+  },
+  {
+    "chapter": "Theory of Demand & Elasticity",
+    "question": "When price elasticity of demand equals one, total expenditure:",
+    "options": ["Increases", "Decreases", "Remains constant", "Becomes infinite"],
+    "answer": "Remains constant",
+    "explanation": "Unit elasticity means a proportional change in quantity exactly offsets the price change.",
+    "source": "DSE 2018 Q14"
+  },
+  {
+    "chapter": "Theory of Demand & Elasticity",
+    "question": "If demand for salt is almost perfectly inelastic, an increase in price will:",
+    "options": ["Decrease total expenditure", "Increase total expenditure", "Leave total expenditure unchanged", "Make demand zero"],
+    "answer": "Increase total expenditure",
+    "explanation": "With inelastic demand, price and total revenue move in the same direction.",
+    "source": "CUET 2020 Q17"
+  },
+  {
+    "chapter": "Theory of Demand & Elasticity",
+    "question": "The slope of a demand curve is:",
+    "options": ["Change in price divided by change in quantity", "Change in quantity divided by change in price", "Percentage change in demand", "Constant for all goods"],
+    "answer": "Change in price divided by change in quantity",
+    "explanation": "While elasticity measures responsiveness, slope measures absolute change in price and quantity.",
+    "source": "JNU 2015 Q13"
+  },
+  {
+    "chapter": "Theory of Demand & Elasticity",
+    "question": "Income elasticity of demand is negative for:",
+    "options": ["Normal goods", "Inferior goods", "Substitutes", "Luxury goods"],
+    "answer": "Inferior goods",
+    "explanation": "As income increases, consumers buy less of inferior goods.",
+    "source": "CUET 2021 Q9"
+  },
+  {
+    "chapter": "Theory of Demand & Elasticity",
+    "question": "Which pair of goods has a high cross elasticity of demand?",
+    "options": ["Car and petrol", "Tea and coffee", "Pen and paper", "Shirt and tie"],
+    "answer": "Tea and coffee",
+    "explanation": "They are close substitutes; a price rise in one increases demand for the other.",
+    "source": "CUET 2022 Q14"
+  },
+  {
+    "chapter": "Theory of Demand & Elasticity",
+    "question": "A horizontal demand curve represents:",
+    "options": ["Perfectly elastic demand", "Perfectly inelastic demand", "Unitary elasticity", "Normal demand curve"],
+    "answer": "Perfectly elastic demand",
+    "explanation": "Even a tiny rise in price leads to zero demand; infinite elasticity.",
+    "source": "DSE 2016 Q23"
+  },
+  {
+    "chapter": "Theory of Demand & Elasticity",
+    "question": "A vertical demand curve represents:",
+    "options": ["Perfectly elastic demand", "Perfectly inelastic demand", "Unitary elasticity", "Negative elasticity"],
+    "answer": "Perfectly inelastic demand",
+    "explanation": "Demand stays constant regardless of price; elasticity = 0.",
+    "source": "CUET 2018 Q19"
+  },
+  {
+    "chapter": "Theory of Demand & Elasticity",
+    "question": "The market demand curve is derived by:",
+    "options": ["Vertical summation of individual curves", "Horizontal summation of individual curves", "Adding incomes of consumers", "Adding price elasticities"],
+    "answer": "Horizontal summation of individual curves",
+    "explanation": "It adds quantities demanded by all consumers at each price level.",
+    "source": "JNU 2013 Q9"
+  },
+  {
+    "chapter": "Theory of Demand & Elasticity",
+    "question": "Price elasticity along a straight-line demand curve:",
+    "options": ["Remains constant", "Varies along the curve", "Is zero everywhere", "Is infinite"],
+    "answer": "Varies along the curve",
+    "explanation": "Elastic at high prices, inelastic at low prices.",
+    "source": "CUET 2020 Q13"
+  },
+  {
+    "chapter": "Theory of Demand & Elasticity",
+    "question": "The main determinant of price elasticity of demand is:",
+    "options": ["Level of income", "Availability of substitutes", "Tastes of consumers", "Number of buyers"],
+    "answer": "Availability of substitutes",
+    "explanation": "More substitutes make demand more elastic.",
+    "source": "CUET 2021 Q20"
+  },
+  {
+    "chapter": "Theory of Demand & Elasticity",
+    "question": "If the price of a good falls from ₹10 to ₹8 and quantity rises from 20 to 30 units, elasticity is approximately:",
+    "options": ["0.5", "1.0", "1.25", "2.0"],
+    "answer": "1.25",
+    "explanation": "Elasticity ≈ 1.25 shows moderate responsiveness to price change.",
+    "source": "DSE 2019 Q16"
+  },
+  {
+    "chapter": "Theory of Demand & Elasticity",
+    "question": "Demand curve slope depends on:",
+    "options": ["Change in income", "Change in price and quantity demanded", "Tastes and preferences", "Cross elasticity"],
+    "answer": "Change in price and quantity demanded",
+    "explanation": "The slope is determined by absolute change, not percentage change.",
+    "source": "CUET 2018 Q20"
+  },
+  {
+    "chapter": "Theory of Demand & Elasticity",
+    "question": "When elasticity of demand is greater than one, demand is:",
+    "options": ["Elastic", "Inelastic", "Unitary", "Perfectly inelastic"],
+    "answer": "Elastic",
+    "explanation": "A percentage change in price leads to a larger percentage change in quantity demanded.",
+    "source": "JNU 2016 Q12"
+  },
+  {
+    "chapter": "Theory of Demand & Elasticity",
+    "question": "When elasticity of demand is less than one, demand is:",
+    "options": ["Elastic", "Inelastic", "Unitary", "Perfectly elastic"],
+    "answer": "Inelastic",
+    "explanation": "Consumers are less responsive to price changes; total revenue moves with price.",
+    "source": "CUET 2019 Q19"
+  },
+  {
+    "chapter": "Theory of Demand & Elasticity",
+    "question": "For a perfectly inelastic demand curve, total revenue:",
+    "options": ["Increases with price", "Decreases with price", "Remains constant", "Cannot be determined"],
+    "answer": "Increases with price",
+    "explanation": "If quantity demanded doesn’t change, any price rise increases total revenue.",
+    "source": "DSE 2018 Q15"
+  },
+  {
+    "chapter": "Theory of Demand & Elasticity",
+    "question": "Cross elasticity of demand between complementary goods is:",
+    "options": ["Positive", "Negative", "Zero", "Infinite"],
+    "answer": "Negative",
+    "explanation": "Price rise in one reduces demand for its complement (e.g., car and petrol).",
+    "source": "CUET 2022 Q13"
+  },
+  {
+    "chapter": "Theory of Demand & Elasticity",
+    "question": "The demand for necessities tends to be:",
+    "options": ["Perfectly elastic", "Elastic", "Inelastic", "Unitary elastic"],
+    "answer": "Inelastic",
+    "explanation": "Consumers cannot easily reduce consumption even when prices rise.",
+    "source": "JNU 2015 Q14"
+  },
+  {
+    "chapter": "Theory of Demand & Elasticity",
+    "question": "The elasticity of demand for luxury goods is generally:",
+    "options": ["Less than one", "Equal to one", "Greater than one", "Zero"],
+    "answer": "Greater than one",
+    "explanation": "Luxury items show high sensitivity to income and price changes.",
+    "source": "CUET 2021 Q18"
+  },
+  {
+    "chapter": "Theory of Demand & Elasticity",
+    "question": "If the demand curve passes through the midpoint, elasticity is:",
+    "options": ["Elastic", "Inelastic", "Unitary", "Zero"],
+    "answer": "Unitary",
+    "explanation": "At the midpoint of a straight-line demand curve, elasticity = 1.",
+    "source": "DSE 2019 Q14"
+  },
+  {
+    "chapter": "Theory of Demand & Elasticity",
+    "question": "When the price of X increases and demand for Y decreases, the two goods are:",
+    "options": ["Substitutes", "Complements", "Inferior goods", "Independent goods"],
+    "answer": "Complements",
+    "explanation": "A rise in the price of one reduces demand for the other; cross elasticity is negative.",
+    "source": "CUET 2020 Q18"
   }
+
+
 
 
 ]
