@@ -1,0 +1,18 @@
+[
+  {
+    "chapter": "Theory of Consumer Behaviour",
+    "question": "The concept of diminishing MRS implies that the indifference curve is:",
+    "options": ["Concave to origin", "Convex to origin", "Straight line", "Right angle"],
+    "answer": "Convex to origin",
+    "explanation": "As substitution continues, the consumer gives up fewer units of one good for another, hence convex IC.",
+    "source": "JNU 2013 Q12"
+  },
+  {
+    "chapter": "National Income",
+    "question": "Which of the following is not a component of GDP?",
+    "options": ["Investment", "Government Spending", "Exports", "Transfer Payments"],
+    "answer": "Transfer Payments",
+    "explanation": "GDP measures production of goods and services; transfer payments don’t involve production.",
+    "source": "CUET 2022 Q18"
+  }
+]
