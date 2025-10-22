@@ -3,9 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>MCQ Practice – CUET PG Economics </title>
+  <title>MCQ Practice – CUET PG Economics</title>
 
-  <!-- Fonts + Tailwind -->
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -13,27 +12,31 @@
       theme: {
         extend: {
           fontFamily: { poppins: ['Poppins', 'sans-serif'] },
-          colors: {
-            primary: '#0ea5a4',
-            muted: '#6b7280',
-            parrot: '#32CD32' /* parrot green */
-          }
+          colors: { primary: '#0ea5a4' }
         }
       }
     }
   </script>
 
-  <!-- React + Babel (no "env" preset) -->
+  <!-- slide + fade animation for question transitions -->
+  <style>
+    body { font-family: 'Poppins', sans-serif; }
+    @keyframes slideFadeIn {
+      0%   { opacity: 0; transform: translateY(8px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    .animate-slidefade { animation: slideFadeIn .35s ease both; }
+  </style>
+
+  <!-- React + Babel (development UMD) -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-  <style>body{font-family:'Poppins',sans-serif}</style>
 </head>
 <body class="bg-white text-gray-800">
   <div id="root" class="min-h-screen"></div>
 
-  <!-- App code -->
+  <!-- IMPORTANT: only 'react' preset -->
   <script type="text/babel" data-presets="react" src="./main.jsx"></script>
 </body>
 </html>
