@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Economics MCQ Practice – CUET | DSE | JNU | UOH</title>
 
-  <!-- Font + Tailwind -->
+  <!-- Tailwind + Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -19,256 +19,116 @@
     }
   </script>
 
-  <!-- React + Babel (note: data-presets="react" only) -->
+  <!-- React + Babel -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
-
-  <style> body { font-family: 'Poppins', sans-serif; } </style>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
-<body class="bg-white text-gray-800">
+
+<body class="bg-white text-gray-800 font-poppins">
   <div id="root" class="min-h-screen flex items-center justify-center p-4"></div>
 
   <script type="text/babel" data-presets="react">
-    const { useState, useEffect } = React;
+    const App = () => {
+      const [questions, setQuestions] = React.useState([]);
+      const [current, setCurrent] = React.useState(0);
+      const [answers, setAnswers] = React.useState({});
+      const [submitted, setSubmitted] = React.useState(false);
 
-    // =========================
-    // EDIT YOUR QUESTIONS HERE
-    // =========================
-    const questions = [
-      {
-        chapter: 'Theory of Consumer Behaviour',
-        question: 'The concept of diminishing MRS implies that the indifference curve is:',
-        options: ['Concave to origin', 'Convex to origin', 'Straight line', 'Right angle'],
-        answer: 'Convex to origin',
-        explanation: 'As substitution continues, the consumer gives up fewer units of one good for another, hence convex IC.',
-        source: 'JNU 2013 Q12'
-      },
-      {
-        chapter: 'Market Structures',
-        question: 'In perfect competition, firms are price takers because:',
-        options: ['Each firm is large relative to industry', 'There are barriers to entry', 'Products are homogeneous', 'Firms collude'],
-        answer: 'Products are homogeneous',
-        explanation: 'Homogeneous products mean buyers switch to cheaper sellers, so individual firms can’t influence price.',
-        source: 'CUET PYQ 2019'
+      // Load questions.json dynamically
+      React.useEffect(() => {
+        fetch('questions.json?v=' + Date.now())
+          .then(res => res.json())
+          .then(data => setQuestions(data))
+          .catch(err => console.error('Error loading questions:', err));
+      }, []);
+
+      if (!questions.length) {
+        return <div className="text-center text-lg text-gray-500">Loading questions...</div>;
       }
-    ];
 
-    function App(){
-      const [page, setPage] = useState('home');
-      const [category, setCategory] = useState('All');
-      const [filteredQuestions, setFilteredQuestions] = useState(questions);
-      const [current, setCurrent] = useState(0);
-      const [selectedAnswers, setSelectedAnswers] = useState({}); // { [index]: optionIndex }
-      const total = filteredQuestions.length;
+      const q = questions[current];
 
-      // filter by chapter
-      useEffect(() => {
-        const list = category === 'All'
-          ? questions
-          : questions.filter(q => q.chapter === category);
-        setFilteredQuestions(list);
-        setSelectedAnswers({});
-        setCurrent(0);
-      }, [category]);
-
-      const handleSelect = (idx) => {
-        setSelectedAnswers(prev => ({ ...prev, [current]: idx }));
+      const handleSelect = (opt) => {
+        setAnswers({ ...answers, [current]: opt });
       };
 
-      const goNext = () => current < total - 1 && setCurrent(c => c + 1);
-      const goPrev = () => current > 0 && setCurrent(c => c - 1);
+      const next = () => current < questions.length - 1 && setCurrent(current + 1);
+      const prev = () => current > 0 && setCurrent(current - 1);
+      const submit = () => setSubmitted(true);
 
-      const attemptedCount = Object.keys(selectedAnswers).length;
-      const unattemptedCount = Math.max(total - attemptedCount, 0);
-      const positionPercent = total ? Math.round(((current + 1) / total) * 100) : 0;
-      const attemptedPercent = total ? Math.round((attemptedCount / total) * 100) : 0;
+      const score = Object.entries(answers).reduce(
+        (acc, [i, ans]) => acc + (ans === questions[i].answer ? 1 : 0),
+        0
+      );
 
-      const computeScore = () => {
-        let correct = 0;
-        filteredQuestions.forEach((q, i) => {
-          const selIdx = selectedAnswers[i];
-          if (selIdx != null && q.options[selIdx] === q.answer) correct++;
-        });
-        return { correct, total, attempted: attemptedCount, unattempted: unattemptedCount };
-      };
-
-      // ---------------- Home ----------------
-      if (page === 'home') {
+      if (submitted) {
         return (
-          <div className="max-w-3xl w-full">
-            <div className="text-center mb-6">
-              <h1 className="text-2xl md:text-3xl font-semibold">Economics MCQ Practice – CUET | DSE | JNU | UOH</h1>
-              <p className="text-sm text-muted mt-2">Practice chapter-wise Economics PYQs with instant feedback.</p>
+          <div className="max-w-2xl mx-auto p-4">
+            <h2 className="text-2xl font-bold text-center mb-4">Your Result</h2>
+            <p className="text-center text-lg mb-4">
+              Score: {score} / {questions.length} ({Math.round((score / questions.length) * 100)}%)
+            </p>
+            <div className="space-y-6">
+              {questions.map((q, i) => {
+                const sel = answers[i];
+                const correct = sel === q.answer;
+                return (
+                  <div key={i} className="border p-4 rounded-lg shadow-sm">
+                    <p className="font-semibold">{i + 1}. {q.question}</p>
+                    <p className={`mt-2 ${correct ? 'text-green-600' : 'text-red-600'}`}>
+                      Your answer: {sel || 'Not answered'}
+                    </p>
+                    <p className="text-green-700">Correct: {q.answer}</p>
+                    <p className="text-gray-600 text-sm mt-1">{q.explanation}</p>
+                  </div>
+                );
+              })}
             </div>
-            <div className="bg-white shadow-md rounded-2xl p-6">
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-end justify-between gap-4">
-                <div>
-                  <label className="block text-sm text-muted">Category</label>
-                  <select
-                    className="mt-1 p-2 border rounded w-full"
-                    value={category}
-                    onChange={e => setCategory(e.target.value)}
-                  >
-                    <option>All</option>
-                    {[...new Set(questions.map(q => q.chapter))].map(c =>
-                      <option key={c} value={c}>{c}</option>
-                    )}
-                  </select>
-                </div>
-                <button
-                  className="bg-primary text-white px-4 py-2 rounded shadow w-full sm:w-auto"
-                  onClick={() => setPage('quiz')}
-                >
-                  Start Test
-                </button>
-              </div>
-              <div className="mt-6 text-sm text-muted">
-                Questions loaded: <strong>{filteredQuestions.length}</strong>
-              </div>
+            <div className="text-center mt-6">
+              <button
+                onClick={() => { setSubmitted(false); setAnswers({}); setCurrent(0); }}
+                className="bg-primary text-white px-6 py-2 rounded-lg"
+              >
+                Retry Test
+              </button>
             </div>
           </div>
         );
       }
 
-      // ---------------- Quiz ----------------
-      if (page === 'quiz' && total > 0) {
-        const q = filteredQuestions[current];
-        const sel = selectedAnswers[current];
-
-        return (
-          <div className="max-w-3xl w-full">
-            <div className="flex justify-between items-center mb-2">
-              <button className="border px-3 py-1 rounded" onClick={() => setPage('home')}>Home</button>
-              <div className="text-sm text-muted">Question {current + 1} of {total}</div>
-            </div>
-
-            {/* Counters row */}
-            <div className="mb-2 grid grid-cols-3 gap-2 text-sm text-gray-700">
-              <div className="rounded-md bg-gray-50 border p-2 text-center">Total<br/><span className="font-semibold">{total}</span></div>
-              <div className="rounded-md bg-green-50 border p-2 text-center">Attempted<br/><span className="font-semibold">{attemptedCount}</span></div>
-              <div className="rounded-md bg-yellow-50 border p-2 text-center">Unattempted<br/><span className="font-semibold">{unattemptedCount}</span></div>
-            </div>
-
-            {/* Progress bars */}
-            <div className="mb-4 space-y-2">
-              <div className="text-xs text-muted">Position: {positionPercent}%</div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div className="bg-primary h-2 rounded-full" style={{ width: `${positionPercent}%` }}></div>
-              </div>
-              <div className="text-xs text-muted">Attempted: {attemptedPercent}%</div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div className="bg-primary h-2 rounded-full" style={{ width: `${attemptedPercent}%` }}></div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl shadow p-6">
-              <div className="mb-4">
-                <h3 className="font-semibold text-lg">{q.chapter}</h3>
-                <p className="mt-1 text-sm text-muted">{q.source}</p>
-              </div>
-
-              <div className="p-4 bg-gray-50 rounded">
-                <div className="text-md mb-3">{q.question}</div>
-                <div className="grid gap-3">
-                  {q.options.map((opt, idx) => (
-                    <label
-                      key={idx}
-                      className={`block p-3 rounded border cursor-pointer ${sel === idx ? 'border-primary bg-primary/10' : 'bg-white'}`}
-                    >
-                      <input
-                        type="radio"
-                        name={`q${current}`}
-                        checked={sel === idx}
-                        onChange={() => handleSelect(idx)}
-                        className="mr-2"
-                      />
-                      <span className="font-medium mr-2">{String.fromCharCode(65 + idx)}.</span>
-                      <span>{opt}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex justify-between mt-4">
-                <button onClick={goPrev} disabled={current === 0} className="px-4 py-2 border rounded disabled:opacity-50">Previous</button>
-                {current < total - 1 ? (
-                  <button onClick={goNext} className="px-4 py-2 bg-primary text-white rounded">Next</button>
-                ) : (
-                  <button onClick={() => setPage('result')} className="px-4 py-2 bg-primary text-white rounded">Submit</button>
-                )}
-              </div>
-            </div>
+      return (
+        <div className="max-w-xl mx-auto bg-white rounded-xl shadow-lg p-6">
+          <h2 className="text-lg font-semibold mb-2 text-primary">
+            Question {current + 1} of {questions.length}
+          </h2>
+          <p className="mb-4">{q.question}</p>
+          <div className="space-y-2">
+            {q.options.map((opt, i) => (
+              <label key={i} className="block border rounded-lg px-3 py-2 cursor-pointer hover:bg-blue-50">
+                <input
+                  type="radio"
+                  name={`q${current}`}
+                  checked={answers[current] === opt}
+                  onChange={() => handleSelect(opt)}
+                  className="mr-2"
+                />
+                {opt}
+              </label>
+            ))}
           </div>
-        );
-      }
-
-      // ---------------- Result ----------------
-      if (page === 'result') {
-        const s = computeScore();
-        const percent = s.total ? Math.round((s.correct / s.total) * 100) : 0;
-
-        return (
-          <div className="max-w-4xl w-full">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Result</h2>
-              <div className="flex gap-2">
-                <button className="border px-3 py-1 rounded" onClick={() => { setPage('home'); }}>Home</button>
-                <button className="border px-3 py-1 rounded" onClick={() => { setSelectedAnswers({}); setCurrent(0); setPage('quiz'); }}>Retry Test</button>
-              </div>
-            </div>
-
-            <div className="bg-white p-6 rounded shadow-md">
-              <div className="grid sm:grid-cols-4 gap-3 text-center">
-                <div className="rounded-md bg-gray-50 border p-3">
-                  <div className="text-sm text-muted">Total</div>
-                  <div className="text-2xl font-bold">{s.total}</div>
-                </div>
-                <div className="rounded-md bg-green-50 border p-3">
-                  <div className="text-sm text-muted">Attempted</div>
-                  <div className="text-2xl font-bold">{s.attempted}</div>
-                </div>
-                <div className="rounded-md bg-yellow-50 border p-3">
-                  <div className="text-sm text-muted">Unattempted</div>
-                  <div className="text-2xl font-bold">{s.unattempted}</div>
-                </div>
-                <div className="rounded-md bg-blue-50 border p-3">
-                  <div className="text-sm text-muted">Score</div>
-                  <div className="text-2xl font-bold">{s.correct}/{s.total} ({percent}%)</div>
-                </div>
-              </div>
-
-              <hr className="my-4" />
-
-              <div className="space-y-4">
-                {filteredQuestions.map((q, i) => {
-                  const selIdx = selectedAnswers[i];
-                  const selText = selIdx == null ? 'Not answered' : q.options[selIdx];
-                  const isCorrect = selText === q.answer;
-                  return (
-                    <div key={i} className="p-4 rounded border">
-                      <div className="flex justify-between">
-                        <div><strong>Q{i + 1}.</strong> <span className="ml-2">{q.question}</span></div>
-                        <div className={`px-2 py-1 rounded text-sm ${isCorrect ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                          {selIdx == null ? 'Unattempted' : isCorrect ? 'Correct' : 'Incorrect'}
-                        </div>
-                      </div>
-                      <div className="mt-2 text-sm text-muted">Your answer: <strong>{selText}</strong> | Correct: <strong>{q.answer}</strong></div>
-                      <div className="mt-2 p-3 bg-gray-50 rounded text-sm">
-                        <div className="font-medium">Explanation</div>
-                        <div className="mt-1">{q.explanation}</div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+          <div className="flex justify-between mt-6">
+            <button onClick={prev} disabled={current === 0}
+              className="bg-gray-300 px-4 py-2 rounded-lg disabled:opacity-50">Previous</button>
+            {current < questions.length - 1 ? (
+              <button onClick={next} className="bg-primary text-white px-4 py-2 rounded-lg">Next</button>
+            ) : (
+              <button onClick={submit} className="bg-green-600 text-white px-4 py-2 rounded-lg">Submit</button>
+            )}
           </div>
-        );
-      }
-
-      return null;
-    }
+        </div>
+      );
+    };
 
     ReactDOM.createRoot(document.getElementById('root')).render(<App />);
   </script>
