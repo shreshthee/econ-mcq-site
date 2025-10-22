@@ -1,4 +1,3 @@
-// FILE: main.jsx
 <button className="bg-primary text-white px-3 py-1 rounded" onClick={()=>{setReviewMode(r=>!r)}}>{reviewMode? 'Hide Review' : 'Review Mode'}</button>
 </div>
 </div>
