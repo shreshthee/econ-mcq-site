@@ -1,23 +1,42 @@
-const { useEffect, useMemo, useState } = React;
+const { useEffect, useMemo, useState, useRef } = React;
 
-/* ----------------- localStorage helper ----------------- */
-const LS_KEY = "econ_mcq_history_v1";
+/* ----------------- localStorage (history) ----------------- */
+const LS_KEY = "econ_mcq_history_v2";
 const ls = {
   get() { try { return JSON.parse(localStorage.getItem(LS_KEY)) ?? []; } catch { return []; } },
   set(v) { try { localStorage.setItem(LS_KEY, JSON.stringify(v)); } catch {} }
 };
 
+/* ----------------- helpers ----------------- */
+const shuffle = (arr) => {
+  const a = arr.slice();
+  for (let i=a.length-1; i>0; i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+};
+const sampleN = (arr, n) => shuffle(arr).slice(0, n);
+const timeForQuestionsSec = (n) => Math.ceil(n * 1.2 * 60); // 1.2 min per question
+
 /* ----------------- UI pieces ----------------- */
-function TopBar({ page, onHome, total, attempted }) {
+function TopBar({ page, onHome, total, attempted, mode, remainingSec }) {
   const unattempted = Math.max(0, total - attempted);
+  const mm = Math.floor(remainingSec/60);
+  const ss = remainingSec%60;
   return (
     <header className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b">
-      <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
         <h1 className="text-base md:text-lg font-semibold">Economics MCQ Practice</h1>
-        <div className="flex items-center gap-3 text-sm">
-          <span className="hidden sm:inline text-muted">Total: <b>{total}</b></span>
-          <span className="hidden sm:inline text-green-700">Attempted: <b>{attempted}</b></span>
-          <span className="hidden sm:inline text-amber-700">Unattempted: <b>{unattempted}</b></span>
+        <div className="flex items-center gap-4 text-sm">
+          <span className="hidden md:inline text-muted">Total: <b>{total}</b></span>
+          <span className="hidden md:inline text-green-700">Attempted: <b>{attempted}</b></span>
+          <span className="hidden md:inline text-amber-700">Unattempted: <b>{unattempted}</b></span>
+          {mode === 'test' && page === 'quiz' && (
+            <span className={`px-2 py-1 rounded border ${remainingSec<=30 ? 'border-red-500 text-red-600' : 'border-gray-300 text-gray-700'}`}>
+              ⏱ {String(mm).padStart(2,'0')}:{String(ss).padStart(2,'0')}
+            </span>
+          )}
           {page !== 'home' && (
             <button onClick={onHome} className="px-3 py-1.5 rounded-lg border hover:bg-gray-50">Home</button>
           )}
@@ -39,15 +58,30 @@ function ProgressBar({ currentIndex, total }) {
 /* ----------------- App ----------------- */
 const App = () => {
   const [page, setPage] = useState('home');     // 'home' | 'quiz' | 'result'
+  const [mode, setMode] = useState('practice'); // 'practice' | 'test'
   const [questions, setQuestions] = useState([]);
-  const [filtered, setFiltered] = useState([]);
-  const [current, setCurrent] = useState(0);
-  const [answers, setAnswers] = useState({});   // { [indexInFiltered]: optionText }
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [chapter, setChapter] = useState('All');
 
-  // Load questions.json with cache-buster
+  // active set shown in quiz (filtered by chapter or sampled for test)
+  const [activeSet, setActiveSet] = useState([]);
+  const [current, setCurrent] = useState(0);
+
+  // answers & flags for activeSet indices
+  const [answers, setAnswers] = useState({});         // { [i]: optionText }
+  const [marked, setMarked]   = useState({});         // { [i]: boolean } mark for review
+
+  // home filters/inputs
+  const [chapter, setChapter] = useState('All');
+  const [testCount, setTestCount] = useState(10);
+
+  // loading & error
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState('');
+
+  // timer
+  const [remainingSec, setRemainingSec] = useState(0);
+  const timerRef = useRef(null);
+
+  // Load questions.json
   useEffect(() => {
     setLoading(true);
     fetch('questions.json?v=' + Date.now())
@@ -60,61 +94,118 @@ const App = () => {
       .catch(err => { console.error(err); setError('Could not load questions.json'); setLoading(false); });
   }, []);
 
-  // Chapters + filtering
   const chapters = useMemo(
     () => ['All', ...Array.from(new Set(questions.map(q => q.chapter).filter(Boolean)))],
     [questions]
   );
 
-  useEffect(() => {
-    if (chapter === 'All') setFiltered(questions);
-    else setFiltered(questions.filter(q => q.chapter === chapter));
-    setAnswers({});
-    setCurrent(0);
-  }, [chapter, questions]);
-
-  const total = filtered.length;
+  // counts
+  const total = activeSet.length;
   const attempted = useMemo(
     () => Object.keys(answers).filter(k => answers[k] !== undefined && answers[k] !== null).length,
     [answers]
   );
   const unattempted = Math.max(0, total - attempted);
 
-  const goHome = () => { setPage('home'); setCurrent(0); window.scrollTo(0,0); };
-  const startTest = () => { if (total) { setPage('quiz'); setCurrent(0); window.scrollTo(0,0); } };
-
+  // navigation
+  const goHome = () => {
+    setPage('home');
+    setCurrent(0);
+    setAnswers({});
+    setMarked({});
+    stopTimer();
+    window.scrollTo(0,0);
+  };
   const handleSelect = (opt) => setAnswers(prev => ({ ...prev, [current]: opt }));
+  const toggleMark = () => setMarked(prev => ({ ...prev, [current]: !prev[current] }));
   const next = () => { if (current < total - 1) setCurrent(c => c + 1); };
   const prev = () => { if (current > 0) setCurrent(c => c - 1); };
 
+  // compute score
   const score = useMemo(() => {
     let s = 0;
-    filtered.forEach((q, i) => { if (answers[i] === q.answer) s++; });
+    activeSet.forEach((q, i) => { if (answers[i] === q.answer) s++; });
     return s;
-  }, [answers, filtered]);
+  }, [answers, activeSet]);
 
-  const submit = () => {
-    const attempt = {
+  // start flows
+  const startPractice = () => {
+    const filtered = (chapter === 'All') ? questions : questions.filter(q => q.chapter === chapter);
+    setActiveSet(filtered);
+    setCurrent(0);
+    setAnswers({});
+    setMarked({});
+    setPage('quiz');
+    stopTimer();
+    setRemainingSec(0);
+    window.scrollTo(0,0);
+  };
+
+  const startTest = () => {
+    const filtered = (chapter === 'All') ? questions : questions.filter(q => q.chapter === chapter);
+    const n = Math.max(1, Math.min(parseInt(testCount || 1, 10), filtered.length));
+    const selected = sampleN(filtered, n);
+    setActiveSet(selected);
+    setCurrent(0);
+    setAnswers({});
+    setMarked({});
+    setPage('quiz');
+    // start timer
+    const totalSec = timeForQuestionsSec(n);
+    setRemainingSec(totalSec);
+    startTimer();
+    window.scrollTo(0,0);
+  };
+
+  const startTimer = () => {
+    stopTimer();
+    timerRef.current = setInterval(() => {
+      setRemainingSec(prev => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current);
+          // auto submit
+          setPage('result');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+  const stopTimer = () => {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+  };
+
+  // stop timer when leaving quiz or switching mode
+  useEffect(() => {
+    if (page !== 'quiz') stopTimer();
+  }, [page]);
+
+  const submitNow = () => {
+    // save attempt
+    const history = ls.get();
+    const percent = total ? Math.round((score / total) * 100) : 0;
+    history.unshift({
       when: new Date().toISOString(),
+      mode,
       filter: chapter,
       total,
       attempted,
       score,
-      percent: total ? Math.round((score / total) * 100) : 0
-    };
-    const history = ls.get();
-    history.unshift(attempt);
-    ls.set(history.slice(0, 30));
+      percent,
+      time_used_sec: (mode==='test') ? (timeForQuestionsSec(total) - remainingSec) : null
+    });
+    ls.set(history.slice(0, 50));
     setPage('result');
+    stopTimer();
     window.scrollTo(0,0);
   };
 
-  /* -------- States -------- */
+  /* ----------------- UI States ----------------- */
   if (loading) {
     return (
       <>
-        <TopBar page={page} onHome={goHome} total={0} attempted={0} />
-        <main className="max-w-5xl mx-auto px-4 py-10">
+        <TopBar page={page} onHome={goHome} total={0} attempted={0} mode={mode} remainingSec={0}/>
+        <main className="max-w-6xl mx-auto px-4 py-10">
           <div className="text-center text-lg text-gray-500">Loading questions…</div>
         </main>
       </>
@@ -123,8 +214,8 @@ const App = () => {
   if (error) {
     return (
       <>
-        <TopBar page={page} onHome={goHome} total={0} attempted={0} />
-        <main className="max-w-5xl mx-auto px-4 py-10">
+        <TopBar page={page} onHome={goHome} total={0} attempted={0} mode={mode} remainingSec={0}/>
+        <main className="max-w-6xl mx-auto px-4 py-10">
           <div className="text-center text-red-600">{error}</div>
           <p className="text-center text-sm text-muted mt-2">
             Ensure <code>questions.json</code> is next to <code>index.html</code> and is valid JSON.
@@ -134,13 +225,17 @@ const App = () => {
     );
   }
 
-  /* -------- HOME -------- */
+  /* ----------------- HOME ----------------- */
   if (page === 'home') {
     const history = ls.get();
+    const filteredCount = (chapter === 'All') ? questions.length : questions.filter(q => q.chapter === chapter).length;
+    const estSec = (mode === 'test') ? timeForQuestionsSec(Math.max(1, Math.min(testCount||1, filteredCount))) : 0;
+    const estMM = Math.floor(estSec/60), estSS = estSec%60;
+
     return (
       <>
-        <TopBar page={page} onHome={goHome} total={questions.length} attempted={0} />
-        <main className="max-w-5xl mx-auto px-4 py-10 space-y-8">
+        <TopBar page={page} onHome={goHome} total={questions.length} attempted={0} mode={mode} remainingSec={0}/>
+        <main className="max-w-6xl mx-auto px-4 py-10 space-y-8">
           <section className="bg-white rounded-2xl shadow p-6">
             <h2 className="text-2xl font-semibold">Economics MCQ Practice – CUET | DSE | JNU | UOH</h2>
             <p className="text-muted mt-1">Practice chapter-wise Economics PYQs with instant feedback.</p>
@@ -157,14 +252,14 @@ const App = () => {
                 </div>
               </div>
               <div className="p-4 rounded-xl border bg-emerald-50">
-                <div className="text-xs text-emerald-700">Selected set</div>
-                <div className="text-2xl font-bold text-emerald-700">{total}</div>
+                <div className="text-xs text-emerald-700">Current Filter Count</div>
+                <div className="text-2xl font-bold text-emerald-700">{filteredCount}</div>
               </div>
             </div>
 
-            <div className="mt-6 flex flex-col sm:flex-row gap-3 items-end">
-              <div className="flex-1">
-                <label className="block text-sm text-muted mb-1">Chapter filter</label>
+            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm text-muted mb-1">Chapter filter (Practice & Test)</label>
                 <select
                   value={chapter}
                   onChange={(e)=>setChapter(e.target.value)}
@@ -173,13 +268,58 @@ const App = () => {
                   {chapters.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
-              <button
-                disabled={!total}
-                onClick={startTest}
-                className="bg-primary text-white px-5 py-2.5 rounded-lg shadow disabled:opacity-50"
-              >
-                Start Test
-              </button>
+
+              <div>
+                <label className="block text-sm text-muted mb-1">Mode</label>
+                <div className="flex items-center gap-4">
+                  <label className="inline-flex items-center gap-2">
+                    <input type="radio" name="mode" value="practice"
+                      checked={mode==='practice'} onChange={()=>setMode('practice')} />
+                    Practice (no timer)
+                  </label>
+                  <label className="inline-flex items-center gap-2">
+                    <input type="radio" name="mode" value="test"
+                      checked={mode==='test'} onChange={()=>setMode('test')} />
+                    Test (timer on)
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {mode === 'test' && (
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-muted mb-1">How many questions do you want to attempt?</label>
+                  <input
+                    type="number" min="1" max={filteredCount || 1}
+                    value={testCount}
+                    onChange={(e)=>setTestCount(e.target.value)}
+                    className="w-full p-2 border rounded-lg"
+                  />
+                  <p className="text-xs text-muted mt-1">Available in filter: {filteredCount}</p>
+                </div>
+                <div className="flex items-end">
+                  <div className="p-3 rounded border bg-gray-50 text-sm">
+                    Estimated time: <b>{String(estMM).padStart(2,'0')}:{String(estSS).padStart(2,'0')}</b> (1.2 min per question)
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-6 flex gap-3">
+              {mode === 'practice' ? (
+                <button
+                  disabled={!filteredCount}
+                  onClick={startPractice}
+                  className="bg-primary text-white px-5 py-2.5 rounded-lg shadow disabled:opacity-50"
+                >Start Practice</button>
+              ) : (
+                <button
+                  disabled={!filteredCount}
+                  onClick={startTest}
+                  className="bg-primary text-white px-5 py-2.5 rounded-lg shadow disabled:opacity-50"
+                >Start Test</button>
+              )}
             </div>
           </section>
 
@@ -188,7 +328,7 @@ const App = () => {
               <h3 className="text-lg font-semibold">Past Results</h3>
               <button onClick={()=>ls.set([])} className="text-sm text-red-600 hover:underline">Clear</button>
             </div>
-            {history.length === 0 ? (
+            {ls.get().length === 0 ? (
               <p className="text-sm text-muted">No attempts yet.</p>
             ) : (
               <div className="overflow-x-auto">
@@ -196,20 +336,24 @@ const App = () => {
                   <thead className="text-left text-muted">
                     <tr>
                       <th className="py-2 pr-4">When</th>
+                      <th className="py-2 pr-4">Mode</th>
                       <th className="py-2 pr-4">Filter</th>
                       <th className="py-2 pr-4">Score</th>
                       <th className="py-2 pr-4">Attempted</th>
                       <th className="py-2 pr-4">Total</th>
+                      <th className="py-2 pr-4">Time Used</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {history.map((h, i) => (
+                    {ls.get().map((h, i) => (
                       <tr key={i} className="border-t">
                         <td className="py-2 pr-4">{new Date(h.when).toLocaleString()}</td>
+                        <td className="py-2 pr-4 capitalize">{h.mode}</td>
                         <td className="py-2 pr-4">{h.filter}</td>
                         <td className="py-2 pr-4 font-medium">{h.score} ({h.percent}%)</td>
                         <td className="py-2 pr-4">{h.attempted}</td>
                         <td className="py-2 pr-4">{h.total}</td>
+                        <td className="py-2 pr-4">{h.time_used_sec!=null ? `${Math.floor(h.time_used_sec/60)}m ${h.time_used_sec%60}s` : '-'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -222,78 +366,155 @@ const App = () => {
     );
   }
 
-  /* -------- QUIZ -------- */
+  /* ----------------- QUIZ ----------------- */
   if (page === 'quiz') {
-    const q = filtered[current];
+    const q = activeSet[current];
     const sel = answers[current];
+
+    // palette status for each question
+    const statusFor = (i) => {
+      const answered = answers[i] != null;
+      const isMarked = !!marked[i];
+      if (answered && isMarked) return 'attempted_marked';      // violet
+      if (!answered && isMarked) return 'marked_only';          // blue
+      if (answered && !isMarked) return 'attempted';            // parrot green
+      return 'unattempted';                                     // white
+    };
+
+    const badgeClass = (s, i) => {
+      const base = "w-8 h-8 rounded-md flex items-center justify-center text-sm border cursor-pointer";
+      const ring = (i===current) ? " ring-2 ring-primary" : "";
+      if (s === 'attempted_marked') return base + " bg-violet-500 text-white border-violet-600" + ring;
+      if (s === 'marked_only')     return base + " bg-blue-500 text-white border-blue-600" + ring;
+      if (s === 'attempted')       return base + " bg-parrot text-white border-green-600" + ring;
+      return base + " bg-white text-gray-700 border-gray-300" + ring; // unattempted
+    };
 
     return (
       <>
-        <TopBar page={page} onHome={goHome} total={total} attempted={attempted} />
-        <main className="max-w-5xl mx-auto px-4 py-6">
-          <div className="mb-3 flex items-center justify-between gap-4">
-            <div className="text-sm text-muted">Question {current + 1} of {total}</div>
-            <div className="w-1/2"><ProgressBar currentIndex={current} total={total} /></div>
-          </div>
-
-          <section className="bg-white rounded-2xl shadow p-6">
-            <div className="mb-2 text-xs uppercase tracking-wide text-muted">Chapter</div>
-            <div className="mb-4 text-base font-medium">{q.chapter || '—'}</div>
-
-            <h3 className="text-lg font-semibold leading-relaxed">{q.question}</h3>
-            {q.source && <div className="mt-1 text-xs text-muted">Source: {q.source}</div>}
-
-            <div className="mt-5 grid gap-3">
-              {q.options.map((opt, idx) => {
-                const active = sel === opt;
-                return (
-                  <label key={idx}
-                    className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition
-                               ${active ? 'border-primary bg-primary/10' : 'hover:bg-gray-50'}`}>
-                    <input
-                      type="radio"
-                      name={`q-${current}`}  // unique name per question
-                      className="accent-teal-500"
-                      checked={active}
-                      onChange={() => setAnswers(prev => ({ ...prev, [current]: opt }))}
-                    />
-                    <span className="font-medium">{String.fromCharCode(65 + idx)}.</span>
-                    <span>{opt}</span>
-                  </label>
-                );
-              })}
-            </div>
-
-            <div className="mt-6 flex items-center justify-between">
-              <button onClick={()=> current>0 && setCurrent(c=>c-1)}
-                      disabled={current === 0}
-                      className="px-4 py-2 rounded-lg border disabled:opacity-50">Previous</button>
-
-              <div className="text-sm text-muted">
-                Attempted: <b>{attempted}</b> &nbsp;|&nbsp; Unattempted: <b>{unattempted}</b>
+        <TopBar page={page} onHome={goHome} total={total} attempted={attempted} mode={mode} remainingSec={remainingSec}/>
+        <main className="max-w-6xl mx-auto px-4 py-6">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr,280px] gap-6">
+            {/* left: question card */}
+            <div>
+              <div className="mb-3 flex items-center justify-between gap-4">
+                <div className="text-sm text-muted">Question {current + 1} of {total}</div>
+                <div className="w-1/2"><ProgressBar currentIndex={current} total={total} /></div>
               </div>
 
-              {current < total - 1 ? (
-                <button onClick={()=> setCurrent(c=>c+1)}
-                        className="px-4 py-2 rounded-lg bg-primary text-white">Next</button>
-              ) : (
-                <button onClick={submit}
-                        className="px-4 py-2 rounded-lg bg-green-600 text-white">Submit</button>
-              )}
+              <section className="bg-white rounded-2xl shadow p-6">
+                <div className="mb-2 text-xs uppercase tracking-wide text-muted">Chapter</div>
+                <div className="mb-4 text-base font-medium">{q.chapter || '—'}</div>
+
+                <h3 className="text-lg font-semibold leading-relaxed">{q.question}</h3>
+                {q.source && <div className="mt-1 text-xs text-muted">Source: {q.source}</div>}
+
+                <div className="mt-5 grid gap-3">
+                  {q.options.map((opt, idx) => {
+                    const active = sel === opt;
+                    return (
+                      <label key={idx}
+                        className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition
+                                   ${active ? 'border-primary bg-primary/10' : 'hover:bg-gray-50'}`}>
+                        <input
+                          type="radio"
+                          name={`q-${current}`}  // unique name per question
+                          className="accent-teal-500"
+                          checked={active}
+                          onChange={() => handleSelect(opt)}
+                        />
+                        <span className="font-medium">{String.fromCharCode(65 + idx)}.</span>
+                        <span>{opt}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex gap-2">
+                    <button onClick={prev} disabled={current === 0}
+                            className="px-4 py-2 rounded-lg border disabled:opacity-50">Previous</button>
+                    {current < total - 1 ? (
+                      <button onClick={next}
+                              className="px-4 py-2 rounded-lg bg-primary text-white">Next</button>
+                    ) : (
+                      <button onClick={submitNow}
+                              className="px-4 py-2 rounded-lg bg-green-600 text-white">Submit</button>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={toggleMark}
+                    className={`px-4 py-2 rounded-lg border ${marked[current] ? 'bg-violet-600 text-white border-violet-700' : 'hover:bg-gray-50'}`}
+                  >
+                    {marked[current] ? 'Unmark Review' : 'Mark for Review'}
+                  </button>
+
+                  <div className="text-sm text-muted">
+                    Attempted: <b>{attempted}</b> &nbsp;|&nbsp; Unattempted: <b>{unattempted}</b>
+                  </div>
+                </div>
+              </section>
             </div>
-          </section>
+
+            {/* right: palette */}
+            <aside className="lg:sticky lg:top-[72px]">
+              <div className="bg-white rounded-2xl shadow p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-semibold">Question Palette</h4>
+                  {mode === 'test' && (
+                    <span className={`text-xs px-2 py-1 rounded border ${remainingSec<=30 ? 'border-red-500 text-red-600' : 'border-gray-300 text-gray-700'}`}>
+                      ⏱ {String(Math.floor(remainingSec/60)).padStart(2,'0')}:{String(remainingSec%60).padStart(2,'0')}
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-5 gap-2">
+                  {activeSet.map((_, i) => {
+                    const s = statusFor(i);
+                    return (
+                      <button key={i} className={badgeClass(s, i)} onClick={()=>setCurrent(i)} title={`Go to Q${i+1}`}>
+                        {i+1}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded bg-white border border-gray-300"></span> Unattempted
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded bg-parrot border border-green-600"></span> Attempted
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded bg-blue-500 border border-blue-600"></span> Marked (no answer)
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded bg-violet-500 border border-violet-600"></span> Attempted + Marked
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <button onClick={submitNow} className="w-full px-4 py-2 rounded-lg bg-green-600 text-white">
+                    Submit Test
+                  </button>
+                </div>
+              </div>
+            </aside>
+          </div>
         </main>
       </>
     );
   }
 
-  /* -------- RESULT -------- */
+  /* ----------------- RESULT ----------------- */
   if (page === 'result') {
     const percent = total ? Math.round((score / total) * 100) : 0;
     return (
       <>
-        <TopBar page={page} onHome={goHome} total={total} attempted={attempted} />
-        <main className="max-w-5xl mx-auto px-4 py-8">
+        <TopBar page={page} onHome={goHome} total={total} attempted={attempted} mode={mode} remainingSec={remainingSec}/>
+        <main className="max-w-6xl mx-auto px-4 py-8">
           <section className="bg-white rounded-2xl shadow p-6">
             <div className="flex flex-wrap items-end justify-between gap-4">
               <div>
@@ -301,9 +522,11 @@ const App = () => {
                 <p className="text-sm text-muted mt-1">
                   Score: <b>{score}</b> / {total} &nbsp;({percent}%)
                 </p>
-                <p className="text-sm text-muted mt-1">
-                  Attempted: <b>{attempted}</b> &nbsp;|&nbsp; Unattempted: <b>{Math.max(0,total-attempted)}</b>
-                </p>
+                {mode==='test' && (
+                  <p className="text-sm text-muted mt-1">
+                    Time used: <b>{Math.floor((timeForQuestionsSec(total)-remainingSec)/60)}m {(timeForQuestionsSec(total)-remainingSec)%60}s</b>
+                  </p>
+                )}
               </div>
               <div className="flex gap-2">
                 <button className="px-4 py-2 rounded-lg border" onClick={goHome}>Home</button>
@@ -317,7 +540,7 @@ const App = () => {
             <hr className="my-6"/>
 
             <div className="space-y-5">
-              {filtered.map((q, i) => {
+              {activeSet.map((q, i) => {
                 const sel = answers[i];
                 const correct = sel === q.answer;
                 return (
