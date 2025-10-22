@@ -139,14 +139,13 @@ const App = () => {
   };
 
   const clearResponse = () => {
-    // remove the selected option for current question (not marking skipped automatically)
     setAnswers(prev => {
       if (prev[current] == null) return prev;
       const copy = { ...prev };
       delete copy[current];
       return copy;
     });
-    // Do not set skipped here; it will turn red only if the user navigates away without answering.
+    // Red flag appears only after navigating away (skip logic).
   };
 
   const next = () => {
@@ -420,7 +419,6 @@ const App = () => {
       const answered = answers[i] != null;
       const isMarked = !!marked[i];
       const isSkipped = !!skipped[i];
-      // order matters:
       if (answered && isMarked) return 'attempted_marked'; // violet
       if (!answered && isMarked) return 'marked_only';     // blue
       if (!answered && isSkipped) return 'skipped';        // red
@@ -434,7 +432,7 @@ const App = () => {
       if (s === 'attempted_marked') return base + " bg-violet-500 text-white border-violet-600" + ring;
       if (s === 'marked_only')     return base + " bg-blue-500 text-white border-blue-600" + ring;
       if (s === 'skipped')         return base + " bg-red-500 text-white border-red-600" + ring;
-      if (s === 'attempted')       return base + " bg-[#32CD32] text-white border-green-600" + ring; // parrot green
+      if (s === 'attempted')       return base + " bg-[#32CD32] text-white border-green-600" + ring;
       return base + " bg-white text-gray-700 border-gray-300" + ring; // unattempted
     };
 
@@ -478,25 +476,16 @@ const App = () => {
                   })}
                 </div>
 
-                <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex gap-2">
-                    <button onClick={prev} disabled={current === 0}
-                            className="px-4 py-2 rounded-lg border disabled:opacity-50">Previous</button>
-                    {current < total - 1 ? (
-                      <button onClick={next}
-                              className="px-4 py-2 rounded-lg bg-primary text-white">Next</button>
-                    ) : (
-                      <button onClick={submitNow}
-                              className="px-4 py-2 rounded-lg bg-green-600 text-white">Submit</button>
-                    )}
-                  </div>
-
-                  <div className="flex gap-2">
+                {/* toolbar (updated layout) */}
+                <div className="mt-6 flex items-center gap-3">
+                  {/* LEFT GROUP: Previous + Clear + Mark */}
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
-                      onClick={() => setMarked(prev => ({ ...prev, [current]: !prev[current] }))}
-                      className={`px-4 py-2 rounded-lg border ${marked[current] ? 'bg-violet-600 text-white border-violet-700' : 'hover:bg-gray-50'}`}
+                      onClick={prev}
+                      disabled={current === 0}
+                      className="px-4 py-2 rounded-lg border disabled:opacity-50"
                     >
-                      {marked[current] ? 'Unmark Review' : 'Mark for Review'}
+                      Previous
                     </button>
 
                     <button
@@ -506,10 +495,39 @@ const App = () => {
                     >
                       Clear Response
                     </button>
+
+                    <button
+                      onClick={() => setMarked(prev => ({ ...prev, [current]: !prev[current] }))}
+                      className={`px-4 py-2 rounded-lg border ${marked[current] ? 'bg-violet-600 text-white border-violet-700' : 'hover:bg-gray-50'}`}
+                    >
+                      {marked[current] ? 'Unmark Review' : 'Mark for Review'}
+                    </button>
                   </div>
 
-                  <div className="text-sm text-muted">
-                    Attempted: <b>{attempted}</b> &nbsp;|&nbsp; Unattempted: <b>{unattempted}</b>
+                  {/* Spacer pushes right group */}
+                  <div className="flex-1" />
+
+                  {/* RIGHT GROUP: stats + Next/Submit */}
+                  <div className="flex items-center gap-4">
+                    <div className="text-sm text-muted">
+                      Attempted: <b>{attempted}</b> &nbsp;|&nbsp; Unattempted: <b>{unattempted}</b>
+                    </div>
+
+                    {current < total - 1 ? (
+                      <button
+                        onClick={next}
+                        className="px-4 py-2 rounded-lg bg-primary text-white"
+                      >
+                        Next
+                      </button>
+                    ) : (
+                      <button
+                        onClick={submitNow}
+                        className="px-4 py-2 rounded-lg bg-green-600 text-white"
+                      >
+                        Submit
+                      </button>
+                    )}
                   </div>
                 </div>
               </section>
