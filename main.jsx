@@ -68,6 +68,7 @@ const App = () => {
   // answers & flags for activeSet indices
   const [answers, setAnswers] = useState({});         // { [i]: optionText }
   const [marked, setMarked]   = useState({});         // { [i]: boolean } mark for review
+  const [skipped, setSkipped] = useState({});         // { [i]: boolean } set when leaving unanswered
 
   // home filters/inputs
   const [chapter, setChapter] = useState('All');
@@ -107,19 +108,61 @@ const App = () => {
   );
   const unattempted = Math.max(0, total - attempted);
 
-  // navigation
+  // navigation helpers
+  const markSkippedIfUnanswered = (idx) => {
+    const answered = answers[idx] != null;
+    const isMarked = !!marked[idx];
+    if (!answered && !isMarked) {
+      setSkipped(prev => ({ ...prev, [idx]: true }));
+    }
+  };
+
   const goHome = () => {
     setPage('home');
     setCurrent(0);
     setAnswers({});
     setMarked({});
+    setSkipped({});
     stopTimer();
     window.scrollTo(0,0);
   };
-  const handleSelect = (opt) => setAnswers(prev => ({ ...prev, [current]: opt }));
-  const toggleMark = () => setMarked(prev => ({ ...prev, [current]: !prev[current] }));
-  const next = () => { if (current < total - 1) setCurrent(c => c + 1); };
-  const prev = () => { if (current > 0) setCurrent(c => c - 1); };
+
+  const handleSelect = (opt) => {
+    setAnswers(prev => ({ ...prev, [current]: opt }));
+    // selecting an option removes "skipped" status
+    setSkipped(prev => {
+      if (!prev[current]) return prev;
+      const copy = { ...prev };
+      delete copy[current];
+      return copy;
+    });
+  };
+
+  const clearResponse = () => {
+    // remove the selected option for current question (not marking skipped automatically)
+    setAnswers(prev => {
+      if (prev[current] == null) return prev;
+      const copy = { ...prev };
+      delete copy[current];
+      return copy;
+    });
+    // Do not set skipped here; it will turn red only if the user navigates away without answering.
+  };
+
+  const next = () => {
+    markSkippedIfUnanswered(current);
+    if (current < total - 1) setCurrent(c => c + 1);
+  };
+
+  const prev = () => {
+    markSkippedIfUnanswered(current);
+    if (current > 0) setCurrent(c => c - 1);
+  };
+
+  const goto = (i) => {
+    markSkippedIfUnanswered(current);
+    setCurrent(i);
+  };
 
   // compute score
   const score = useMemo(() => {
@@ -135,6 +178,7 @@ const App = () => {
     setCurrent(0);
     setAnswers({});
     setMarked({});
+    setSkipped({});
     setPage('quiz');
     stopTimer();
     setRemainingSec(0);
@@ -149,6 +193,7 @@ const App = () => {
     setCurrent(0);
     setAnswers({});
     setMarked({});
+    setSkipped({});
     setPage('quiz');
     // start timer
     const totalSec = timeForQuestionsSec(n);
@@ -175,10 +220,7 @@ const App = () => {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
   };
 
-  // stop timer when leaving quiz or switching mode
-  useEffect(() => {
-    if (page !== 'quiz') stopTimer();
-  }, [page]);
+  useEffect(() => { if (page !== 'quiz') stopTimer(); }, [page]);
 
   const submitNow = () => {
     // save attempt
@@ -265,7 +307,9 @@ const App = () => {
                   onChange={(e)=>setChapter(e.target.value)}
                   className="w-full p-2 border rounded-lg"
                 >
-                  {chapters.map(c => <option key={c} value={c}>{c}</option>)}
+                  {['All', ...Array.from(new Set(questions.map(q => q.chapter).filter(Boolean)))].map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
                 </select>
               </div>
 
@@ -375,10 +419,13 @@ const App = () => {
     const statusFor = (i) => {
       const answered = answers[i] != null;
       const isMarked = !!marked[i];
-      if (answered && isMarked) return 'attempted_marked';      // violet
-      if (!answered && isMarked) return 'marked_only';          // blue
-      if (answered && !isMarked) return 'attempted';            // parrot green
-      return 'unattempted';                                     // white
+      const isSkipped = !!skipped[i];
+      // order matters:
+      if (answered && isMarked) return 'attempted_marked'; // violet
+      if (!answered && isMarked) return 'marked_only';     // blue
+      if (!answered && isSkipped) return 'skipped';        // red
+      if (answered) return 'attempted';                    // parrot green
+      return 'unattempted';                                // white
     };
 
     const badgeClass = (s, i) => {
@@ -386,7 +433,8 @@ const App = () => {
       const ring = (i===current) ? " ring-2 ring-primary" : "";
       if (s === 'attempted_marked') return base + " bg-violet-500 text-white border-violet-600" + ring;
       if (s === 'marked_only')     return base + " bg-blue-500 text-white border-blue-600" + ring;
-      if (s === 'attempted')       return base + " bg-parrot text-white border-green-600" + ring;
+      if (s === 'skipped')         return base + " bg-red-500 text-white border-red-600" + ring;
+      if (s === 'attempted')       return base + " bg-[#32CD32] text-white border-green-600" + ring; // parrot green
       return base + " bg-white text-gray-700 border-gray-300" + ring; // unattempted
     };
 
@@ -443,12 +491,22 @@ const App = () => {
                     )}
                   </div>
 
-                  <button
-                    onClick={toggleMark}
-                    className={`px-4 py-2 rounded-lg border ${marked[current] ? 'bg-violet-600 text-white border-violet-700' : 'hover:bg-gray-50'}`}
-                  >
-                    {marked[current] ? 'Unmark Review' : 'Mark for Review'}
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setMarked(prev => ({ ...prev, [current]: !prev[current] }))}
+                      className={`px-4 py-2 rounded-lg border ${marked[current] ? 'bg-violet-600 text-white border-violet-700' : 'hover:bg-gray-50'}`}
+                    >
+                      {marked[current] ? 'Unmark Review' : 'Mark for Review'}
+                    </button>
+
+                    <button
+                      onClick={clearResponse}
+                      className="px-4 py-2 rounded-lg border hover:bg-gray-50"
+                      title="Clear the selected option"
+                    >
+                      Clear Response
+                    </button>
+                  </div>
 
                   <div className="text-sm text-muted">
                     Attempted: <b>{attempted}</b> &nbsp;|&nbsp; Unattempted: <b>{unattempted}</b>
@@ -473,7 +531,7 @@ const App = () => {
                   {activeSet.map((_, i) => {
                     const s = statusFor(i);
                     return (
-                      <button key={i} className={badgeClass(s, i)} onClick={()=>setCurrent(i)} title={`Go to Q${i+1}`}>
+                      <button key={i} className={badgeClass(s, i)} onClick={()=>goto(i)} title={`Go to Q${i+1}`}>
                         {i+1}
                       </button>
                     );
@@ -485,13 +543,16 @@ const App = () => {
                     <span className="w-3 h-3 rounded bg-white border border-gray-300"></span> Unattempted
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded bg-parrot border border-green-600"></span> Attempted
+                    <span className="w-3 h-3 rounded bg-[#32CD32] border border-green-600"></span> Attempted
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="w-3 h-3 rounded bg-blue-500 border border-blue-600"></span> Marked (no answer)
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="w-3 h-3 rounded bg-violet-500 border border-violet-600"></span> Attempted + Marked
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded bg-red-500 border border-red-600"></span> Skipped
                   </div>
                 </div>
 
