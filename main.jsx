@@ -338,15 +338,6 @@ const App = () => {
       if (answered) return 'attempted';                    // GREEN
       return 'unattempted';                                // WHITE
     };
-    const badgeClass=(s,i)=>{
-      const base="w-8 h-8 rounded-md flex items-center justify-center text-sm border cursor-pointer";
-      const ring=(i===current)?" ring-2 ring-teal-500":"";
-      if (s==='attempted_marked') return base+" bg-blue-500 text-white border-blue-600"+ring;    // BLUE
-      if (s==='marked_only')     return base+" bg-violet-500 text-white border-violet-600"+ring; // PURPLE
-      if (s==='skipped')         return base+" bg-red-500 text-white border-red-600"+ring;
-      if (s==='attempted')       return base+" bg-[#32CD32] text-white border-green-600"+ring;
-      return base+" bg-white text-gray-700 border-gray-300"+ring;
-    };
 
     // dynamic Mark for Review color (button)
     const markBtnColor = sel
@@ -466,14 +457,21 @@ const App = () => {
                 <div className="grid grid-cols-5 gap-2">
                   {activeSet.map((_, i) => {
                     const s = statusFor(i);
-                    const base = "w-8 h-8 rounded-md flex items-center justify-center text-sm border cursor-pointer";
-                    const ring=(i===current)?" ring-2 ring-teal-500":"";
+
+                    // 🔥 Hover polish: scale + shadow + color tint
+                    const base =
+                      "w-8 h-8 rounded-md flex items-center justify-center text-sm border shadow-sm " +
+                      "transition-all duration-200 transform hover:scale-105 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500";
+
+                    const ring = (i === current) ? " ring-2 ring-teal-500" : "";
+
                     const color =
-                      s==='attempted_marked' ? "bg-blue-500 text-white border-blue-600" :     // BLUE
-                      s==='marked_only'     ? "bg-violet-500 text-white border-violet-600" : // PURPLE
-                      s==='skipped'         ? "bg-red-500 text-white border-red-600" :
-                      s==='attempted'       ? "bg-[#32CD32] text-white border-green-600" :
-                                              "bg-white/70 backdrop-blur border-white/60 text-gray-800";
+                      s==='attempted_marked' ? "bg-blue-500 text-white border-blue-600 hover:bg-blue-600" :
+                      s==='marked_only'     ? "bg-violet-500 text-white border-violet-600 hover:bg-violet-600" :
+                      s==='skipped'         ? "bg-red-500 text-white border-red-600 hover:bg-red-600" :
+                      s==='attempted'       ? "bg-[#32CD32] text-white border-green-600 hover:brightness-95" :
+                                              "bg-white text-gray-800 border-gray-300 hover:bg-gray-100 hover:text-teal-600"; // ✅ visible + hover
+
                     return (
                       <button key={i} className={`${base} ${color} ${ring}`} onClick={()=>goto(i)} title={`Go to Q${i+1}`}>
                         {i+1}
