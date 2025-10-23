@@ -1,53 +1,35 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>EconoLearn – Diagnostic</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EconoLearn – MCQ Practice for CUET PG Economics</title>
 
-  <!-- (Icons/manifest optional; not needed to test app boot) -->
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Tailwind (CDN ok for diagnostics) -->
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet" />
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = { theme: { extend: { fontFamily: { poppins: ['Poppins','sans-serif'] }}}}
-  </script>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
 
-  <!-- React (PRODUCTION builds to avoid extra noise) -->
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <!-- Manifest and Icons -->
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" type="image/png" href="favicon-32.png" />
 
-  <!-- Babel (only for JSX in main.jsx) -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+      body {
+        font-family: 'Poppins', sans-serif;
+        background-color: #fff;
+      }
+    </style>
 
-  <style>
-    body{font-family:Poppins,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
-    .error-banner{position:sticky;top:0;background:#fee2e2;color:#7f1d1d;padding:.75rem 1rem;border-bottom:1px solid #fecaca;z-index:9999}
-    pre{white-space:pre-wrap;word-break:break-word}
-  </style>
-</head>
-<body class="bg-white text-gray-800">
-  <!-- Visible error area -->
-  <div id="err" class="hidden error-banner"></div>
+    <!-- React -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  </head>
 
-  <div id="root" class="min-h-screen p-6"></div>
-
-  <script>
-    // Show ANY runtime error on the page so there’s no hidden blank screen.
-    window.onerror = function(msg, src, line, col, err){
-      const box = document.getElementById('err');
-      box.classList.remove('hidden');
-      box.innerHTML = "<b>Runtime error</b><br><small>"+src+":"+line+":"+col+"</small><pre>"+(err && err.stack ? err.stack : msg)+"</pre>";
-    };
-    window.onunhandledrejection = function(e){
-      const box = document.getElementById('err');
-      box.classList.remove('hidden');
-      box.innerHTML = "<b>Unhandled Promise Rejection</b><pre>"+(e.reason && e.reason.stack ? e.reason.stack : String(e.reason))+"</pre>";
-    };
-  </script>
-
-  <!-- Load the diagnostic app -->
-  <script type="text/babel" data-presets="react" src="main.jsx"></script>
-</body>
+  <body>
+    <div id="root"></div>
+    <script type="text/babel" data-presets="react" src="main.jsx"></script>
+  </body>
 </html>
