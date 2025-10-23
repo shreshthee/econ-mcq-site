@@ -1,92 +1,67 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EconoLearn – CUET PG Economics</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EconoLearn – MCQ Practice for CUET PG Economics</title>
 
-  <!-- Manifest & Icons (optional but kept) -->
+  <!-- PWA colors -->
+  <meta name="theme-color" content="#f9fafb" />
+
+  <!-- Manifest & icons -->
   <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png" />
-  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+  <link rel="shortcut icon" href="favicon.ico" />
 
-  <!-- Tailwind + Font -->
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet" />
+  <!-- Tailwind (CDN) -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       theme: {
         extend: {
           fontFamily: { poppins: ['Poppins', 'sans-serif'] },
-          colors: {
-            brand: {
-              50: '#fff1f2',
-              100: '#ffe4e6',
-              200: '#fecdd3',
-              300: '#fda4af',
-              400: '#fb7185',
-              500: '#f43f5e'
-            }
-          },
-          boxShadow: {
-            soft: '0 8px 30px rgba(0,0,0,.06)'
-          }
+          colors: { primary: '#0ea5a4' }
         }
       }
     }
   </script>
 
-  <!-- React (production) + Babel (for JSX here) -->
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
 
+  <!-- Small global styles -->
   <style>
     html, body { height: 100%; }
-    body { font-family: 'Poppins', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial; }
-    /* subtle radial wash behind everything */
-    .wash {
-      background:
-        radial-gradient(1200px 600px at 70% -10%, rgba(244,63,94,.08), transparent 60%),
-        radial-gradient(900px 500px at -10% 100%, rgba(13,148,136,.08), transparent 60%),
-        #fff7f8;
-    }
+    body { font-family: 'Poppins', sans-serif; background: #fff; color: #1f2937; }
+    @keyframes slide { from {opacity:0; transform: translateY(6px);} to {opacity:1; transform: translateY(0);} }
   </style>
+
+  <!-- React UMD + Babel (only 'react' preset) -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- jsPDF (optional, for exports you may add later) -->
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 </head>
 
-<body class="wash text-gray-800">
-  <!-- Top nav -->
-  <header class="sticky top-0 z-40 backdrop-blur bg-white/55 border-b border-white/60">
-    <div class="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
-      <h1 class="text-xl sm:text-2xl font-semibold">
-        <span class="text-gray-900">EconoLearn</span>
-        <span class="text-gray-500"> — CUET PG Economics</span>
-      </h1>
-      <div class="flex gap-3">
-        <a href="#" id="btnReview"
-           class="rounded-xl border border-white/60 bg-white/70 backdrop-blur px-4 py-2 shadow-soft hover:bg-white/90 transition">
-          Review Past Results
-        </a>
-        <a href="#" id="btnAnalytics"
-           class="rounded-xl border border-white/60 bg-white/70 backdrop-blur px-4 py-2 shadow-soft hover:bg-white/90 transition">
-          Analytics
-        </a>
-      </div>
-    </div>
-  </header>
-
-  <!-- Ganesh watermark (left oval) -->
-  <div class="pointer-events-none fixed left-[-120px] bottom-[6%] sm:left-[-80px] sm:bottom-[8%] opacity-[0.08]">
-    <div class="w-[340px] h-[420px] sm:w-[420px] sm:h-[520px] rounded-[50%] overflow-hidden ring-1 ring-rose-200/30">
-      <img src="ganesh.png" alt="Lord Ganesh" class="w-full h-full object-contain" />
-    </div>
+<body>
+  <div class="min-h-screen">
+    <div id="root"></div>
   </div>
 
-  <!-- App root -->
-  <main id="root" class="min-h-[70vh]"></main>
+  <!-- Register service worker for PWA/offline -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js').catch(() => {});
+      });
+    }
+  </script>
 
-  <!-- App script -->
-  <script type="text/babel" data-presets="react" src="main.jsx"></script>
+  <!-- Your app (Babel in-browser; data-presets MUST be 'react' only) -->
+  <script type="text/babel" data-presets="react" src="./main.jsx"></script>
 </body>
 </html>
