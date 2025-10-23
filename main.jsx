@@ -1,4 +1,4 @@
-/* ===================== EconoLearn - main.jsx (UI tuned, HOOKS FIXED) ===================== */
+/* ===================== EconoLearn - main.jsx (UI tuned, scrollable dropdown + compact inputs) ===================== */
 const { useEffect, useMemo, useRef, useState } = React;
 
 /* ----------------- LocalStorage helpers ----------------- */
@@ -67,7 +67,7 @@ const Confetti = ({ on }) => {
   return null;
 };
 
-/* ----------------- TopBar ----------------- */
+/* ----------------- TopBar (bigger, 2-tone title) ----------------- */
 const TopBar = ({ onHome, onHistory, onAnalytics, page, mode, timeLeft }) => (
   <header className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b">
     <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -101,7 +101,7 @@ const Progress = ({ i, total }) => {
   );
 };
 
-/* ----------------- FancySelect (auto flips up/down) ----------------- */
+/* ----------------- FancySelect (auto flips up/down + scrollable) ----------------- */
 function FancySelect({ value, onChange, options }) {
   const [open, setOpen] = useState(false);
   const [placement, setPlacement] = useState('bottom'); // 'bottom' | 'top'
@@ -145,9 +145,10 @@ function FancySelect({ value, onChange, options }) {
       {open && (
         <ul
           ref={listRef}
-          className={`absolute left-0 right-0 max-h-60 overflow-auto rounded-xl border bg-white/95 backdrop-blur shadow-xl
-                      ${placement==='bottom' ? 'mt-2 top-full' : 'mb-2 bottom-full'} z-20`}
+          className={`absolute left-0 right-0 max-h-48 sm:max-h-60 overflow-y-auto rounded-xl border bg-white/95 backdrop-blur shadow-xl
+                      ${placement==='bottom' ? 'mt-2 top-full' : 'mb-2 bottom-full'} z-30`}
           role="listbox"
+          style={{ WebkitOverflowScrolling: 'touch' }}
         >
           {options.map(opt => (
             <li
@@ -197,23 +198,11 @@ const App = () => {
       .finally(()=> setLoading(false));
   }, []);
 
-  /* ---- derived (ALL hooks here, NOT inside branches) ---- */
+  /* ---- derived ---- */
   const total = activeSet.length;
-
-  // How many answered
-  const attemptedCount = useMemo(
-    () => Object.keys(answers).filter(k => answers[k] != null).length,
-    [answers]
-  );
-
-  // Unattempted derived from totals
-  const unattemptedCount = Math.max(0, total - attemptedCount);
-
-  // Score
-  const score = useMemo(
-    () => activeSet.reduce((s, q, i) => s + (answers[i] === q.answer ? 1 : 0), 0),
-    [answers, activeSet]
-  );
+  const attempted = useMemo(()=>Object.keys(answers).filter(k=>answers[k]!=null).length,[answers]);
+  const unattempted = Math.max(0,total-attempted);
+  const score = useMemo(()=>activeSet.reduce((s,q,i)=>s+(answers[i]===q.answer?1:0),0),[answers,activeSet]);
 
   /* ---- timer ---- */
   const stopTimer = ()=>{ if (timer.current){ clearInterval(timer.current); timer.current=null; } };
@@ -223,16 +212,10 @@ const App = () => {
 
   /* ---- navigation helpers ---- */
   const resetRun = ()=>{ setCurrent(0); setAnswers({}); setMarked({}); setSkipped({}); };
-
-  const startPractice = ()=>{ 
-    const pool = chapter==='All' ? questions : questions.filter(q => q.chapter === chapter);
-    if (!pool.length) { alert('No questions are available for this chapter yet.'); return; }
-    setActiveSet(pool); resetRun(); stopTimer(); setPage('quiz'); 
-  };
+  const startPractice = ()=>{ const s = chapter==='All'?questions:questions.filter(q=>q.chapter===chapter); setActiveSet(s); resetRun(); stopTimer(); setPage('quiz'); };
 
   const startTest = ()=>{ 
-    const pool = chapter==='All' ? questions : questions.filter(q => q.chapter === chapter);
-    if (!pool.length) { alert('No questions are available for this chapter yet.'); return; }
+    const pool = chapter==='All'?questions:questions.filter(q=>q.chapter===chapter);
     const requestedN = Math.max(1, parseInt(testCount || 1, 10));
     const n = Math.max(1, Math.min(requestedN, pool.length));   // clamp to available
     const s = pickN(pool, n);
@@ -286,6 +269,7 @@ const App = () => {
             <div className={glassCard}>
               <div className="pointer-events-none absolute -top-16 -left-16 w-72 h-72 bg-white/20 rounded-full blur-3xl"></div>
 
+              {/* Big title inside card */}
               <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-gray-900">
                 EconoLearn <span className="font-semibold text-gray-500">— MCQ Practice for CUET PG Economics</span>
               </h2>
@@ -294,7 +278,11 @@ const App = () => {
               <div className="mt-6 grid md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm">Chapter Filter</label>
-                  <FancySelect value={chapter} onChange={setChapter} options={chapterList} />
+                  <FancySelect
+                    value={chapter}
+                    onChange={setChapter}
+                    options={chapterList}
+                  />
                 </div>
                 <div>
                   <label className="text-sm">Mode</label>
@@ -319,7 +307,7 @@ const App = () => {
                       max={filteredCount}
                       value={testCount}
                       onChange={e=>setTestCount(e.target.value)}
-                      className="w-40 md:w-48 p-2 border rounded-lg bg-white/60 backdrop-blur"
+                      className="w-28 md:w-32 px-3 py-1.5 border rounded-lg bg-white/60 backdrop-blur"
                     />
                     <p className="text-xs text-gray-700 mt-1">
                       Available: {filteredCount}
@@ -331,9 +319,10 @@ const App = () => {
                     </p>
                   </div>
 
+                  {/* Time limit on the same line */}
                   <div className="md:ml-auto">
                     <label className="text-sm block">Time limit</label>
-                    <div className="p-2 border rounded bg-white/60 backdrop-blur text-sm w-40 md:w-44 text-center">
+                    <div className="px-3 py-1.5 border rounded bg-white/60 backdrop-blur text-sm w-28 md:w-32 text-center">
                       {fmt(est)}
                     </div>
                   </div>
@@ -342,9 +331,19 @@ const App = () => {
 
               <div className="mt-6 flex gap-3 flex-wrap">
                 {mode==='practice' ? (
-                  <button onClick={startPractice} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Start Practice</button>
+                  <button
+                    onClick={()=>{ const s = chapter==='All'?questions:questions.filter(q=>q.chapter===chapter); setActiveSet(s); setCurrent(0); setAnswers({}); setMarked({}); setSkipped({}); stopTimer(); setPage('quiz'); }}
+                    className={solidBtn("bg-teal-600 hover:bg-teal-700")}
+                  >
+                    Start Practice
+                  </button>
                 ) : (
-                  <button onClick={startTest} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Start Test</button>
+                  <button
+                    onClick={startTest}
+                    className={solidBtn("bg-teal-600 hover:bg-teal-700")}
+                  >
+                    Start Test
+                  </button>
                 )}
                 <button onClick={()=>setPage('history')} className={glassBtn()}>Review Past Results</button>
                 <button onClick={()=>setPage('analytics')} className={glassBtn()}>Analytics</button>
@@ -358,28 +357,7 @@ const App = () => {
 
   /* ---- QUIZ ---- */
   if (page==='quiz') {
-    const q = activeSet[current];
-
-    // Friendly fallback instead of returning null (prevents "blank screen")
-    if (!q) {
-      return (
-        <>
-          <TopBar page={page} mode={mode} timeLeft={remaining}
-                  onHome={()=>{ stopTimer(); setPage('home'); }} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
-          <main className="max-w-4xl mx-auto px-4 py-12 text-center">
-            <div className="rounded-2xl p-8 bg-white/70 backdrop-blur border">
-              <h2 className="text-xl font-semibold">No questions to display</h2>
-              <p className="text-gray-600 mt-2">
-                This can happen if the selected chapter has no questions or the JSON is malformed.
-              </p>
-              <button onClick={()=>setPage('home')} className="mt-6 px-5 py-2 rounded-lg border border-white/40 bg-white/30 hover:bg-white/40 text-gray-800">
-                Go back Home
-              </button>
-            </div>
-          </main>
-        </>
-      );
-    }
+    const q = activeSet[current]; if (!q) return null;
 
     return (
       <>
@@ -389,8 +367,8 @@ const App = () => {
           <div className="grid lg:grid-cols-[1fr,280px] gap-6">
             <div>
               <div className="mb-3 flex items-center justify-between gap-4">
-                <div className="text-sm text-gray-600">Question {current+1} of {total}</div>
-                <div className="w-1/2"><Progress i={current} total={total}/></div>
+                <div className="text-sm text-gray-600">Question {current+1} of {activeSet.length}</div>
+                <div className="w-1/2"><Progress i={current} total={activeSet.length}/></div>
               </div>
 
               <section className={cardWrap}>
@@ -435,10 +413,10 @@ const App = () => {
                     <div className="flex-1" />
                     <div className="flex items-center gap-4">
                       <div className="text-[13px] text-gray-700 text-right leading-tight">
-                        <div>Attempted: <b>{attemptedCount}</b></div>
-                        <div className="mt-1">Unattempted: <b>{unattemptedCount}</b></div>
+                        <div>Attempted: <b>{Object.keys(answers).filter(k=>answers[k]!=null).length}</b></div>
+                        <div className="mt-1">Unattempted: <b>{Math.max(0, activeSet.length - Object.keys(answers).filter(k=>answers[k]!=null).length)}</b></div>
                       </div>
-                      {current < total-1 ? (
+                      {current < activeSet.length-1 ? (
                         <button onClick={()=>{ if(!answers[current] && !marked[current]) setSkipped(p=>({...p,[current]:true})); setCurrent(c=>c+1); }} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Next</button>
                       ) : (
                         <button onClick={()=>{ if(!answers[current] && !marked[current]) setSkipped(p=>({...p,[current]:true})); stopTimer(); setPage('result'); }} className={solidBtn("bg-green-600 hover:bg-green-700")}>Submit</button>
@@ -449,6 +427,7 @@ const App = () => {
               </section>
             </div>
 
+            {/* Palette */}
             <aside className="lg:sticky lg:top-[72px]">
               <div className="rounded-2xl p-4 bg-white/70 backdrop-blur border border-white/60 shadow">
                 <div className="flex items-center justify-between mb-2">
@@ -582,43 +561,6 @@ const App = () => {
                     })}
                   </div>
                 </details>
-              ))}
-            </div>
-          )}
-        </main>
-      </>
-    );
-  }
-
-  /* ---- ANALYTICS ---- */
-  if (page==='analytics') {
-    const hist = store.get();
-    const agg = {};
-    hist.forEach(at => at.questions.forEach((q,i)=>{
-      const ch=q.chapter||'Unknown'; if(!agg[ch]) agg[ch]={correct:0,total:0};
-      agg[ch].total++; if(at.answers[i]===q.answer) agg[ch].correct++;
-    }));
-    const rows = Object.entries(agg).map(([ch,{correct,total}])=>({ch,correct,total,pct: total?Math.round(correct/total*100):0}))
-                                   .sort((a,b)=>a.ch.localeCompare(b.ch));
-
-    return (
-      <>
-        <TopBar page={page} mode={mode} timeLeft={remaining}
-                onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
-        <main className="max-w-6xl mx-auto px-4 py-8">
-          <h2 className="text-xl font-semibold mb-4">Chapter-wise Analytics</h2>
-          {rows.length===0 ? <div className="text-gray-500">No data yet.</div> : (
-            <div className="space-y-3">
-              {rows.map(r=>(
-                <div key={r.ch} className="p-3 border rounded-xl bg-white/70 backdrop-blur">
-                  <div className="flex items-center justify-between">
-                    <div className="font-semibold">{r.ch}</div>
-                    <div className="text-sm text-gray-700">{r.correct}/{r.total} correct • {r.pct}%</div>
-                  </div>
-                  <div className="mt-2 h-3 w-full bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-teal-500" style={{width:`${r.pct}%`}}/>
-                  </div>
-                </div>
               ))}
             </div>
           )}
