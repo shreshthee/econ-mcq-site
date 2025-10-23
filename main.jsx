@@ -1,4 +1,4 @@
-/* ===================== EconoLearn - final main.jsx ===================== */
+/* ===================== EconoLearn - main.jsx (timer fixed) ===================== */
 const { useEffect, useMemo, useRef, useState } = React;
 
 /* ----------------- LocalStorage helpers ----------------- */
@@ -8,13 +8,17 @@ const store = {
   set(v) { try { localStorage.setItem(LS_KEY, JSON.stringify(v)); } catch {} }
 };
 
+/* ----------------- Time helpers (FIXED) ----------------- */
+// single source of truth for time-per-question rule
+const TIME_PER_Q_MIN = 1.2;              // 1.2 minutes per question
+const timeForN = (n) => Math.round(n * TIME_PER_Q_MIN * 60); // seconds
+const fmt = (s) => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+
 /* ----------------- Small utils ----------------- */
 const shuffle = (arr) => { const a = arr.slice(); for (let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]];} return a; };
 const pickN = (arr, n) => shuffle(arr).slice(0, n);
-const timeForN = (n) => Math.ceil(n * 1.2 * 60); // 1.2 min per question
-const fmt = (s) => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
 
-/* ----------------- Background (Ganesh left, responsive) ----------------- */
+/* ----------------- Background ----------------- */
 const Background = () => (
   <>
     <div className="pointer-events-none fixed left-0 top-1/2 -translate-y-1/2
@@ -33,7 +37,7 @@ const glassBtn  = (extra="") => `px-4 py-2 rounded-lg border border-white/40 bg-
                                   transform-gpu hover:scale-[1.03] active:scale-[0.99] ${extra}`;
 const solidBtn  = (extra="") => `px-5 py-2 rounded-lg text-white shadow-md transform-gpu hover:scale-[1.03] active:scale-[0.99] ${extra}`;
 
-/* ----------------- Confetti (on high score) ----------------- */
+/* ----------------- Confetti ----------------- */
 const Confetti = ({ on }) => {
   useEffect(() => {
     if (!on) return;
@@ -90,7 +94,6 @@ const Progress = ({ i, total }) => {
 
 /* ====================================================================== */
 const App = () => {
-  /* ---- global state (hooks only at top!) ---- */
   const [page, setPage] = useState('home');           // home | quiz | result | history | analytics
   const [mode, setMode] = useState('practice');       // practice | test
   const [questions, setQuestions] = useState([]);
@@ -108,7 +111,7 @@ const App = () => {
 
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
-  const [sortBy, setSortBy] = useState('date_desc');  // for history page sort
+  const [sortBy, setSortBy] = useState('date_desc');
 
   /* ---- load questions ---- */
   useEffect(() => {
@@ -148,7 +151,7 @@ const App = () => {
       timestamp: new Date().toISOString(),
       mode, chapter, total, score,
       percent: total ? Math.round((score/total)*100) : 0,
-      durationSec: mode==='test' ? timeForN(total) : null,
+      durationSec: mode==='test' ? timeForN(total) : null, // FIXED: matches rule
       answers: Array.from({length: total}, (_,i)=>answers[i] ?? null),
       questions: activeSet.map(q=>({chapter:q.chapter, question:q.question, options:q.options, answer:q.answer, source:q.source ?? null}))
     };
@@ -172,7 +175,8 @@ const App = () => {
   /* ---- HOME ---- */
   if (page==='home') {
     const filteredCount = chapter==='All'?questions.length:questions.filter(q=>q.chapter===chapter).length;
-    const est = timeForN(Math.min(testCount, filteredCount||1));
+    const effectiveN = Math.max(1, Math.min(parseInt(testCount||1,10), filteredCount || 1));
+    const est = timeForN(effectiveN); // FIXED: 1.2 min per Q
     return (
       <>
         <TopBar page={page} mode={mode} timeLeft={remaining}
@@ -218,9 +222,9 @@ const App = () => {
 
               <div className="mt-6 flex gap-3 flex-wrap">
                 {mode==='practice' ? (
-                  <button onClick={startPractice} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Start Practice</button>
+                  <button onClick={()=>{ const s = chapter==='All'?questions:questions.filter(q=>q.chapter===chapter); setActiveSet(s); setCurrent(0); setAnswers({}); setMarked({}); setSkipped({}); stopTimer(); setPage('quiz'); }} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Start Practice</button>
                 ) : (
-                  <button onClick={startTest} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Start Test</button>
+                  <button onClick={()=>{ const pool = chapter==='All'?questions:questions.filter(q=>q.chapter===chapter); const n = Math.max(1, Math.min(parseInt(testCount||1,10), pool.length)); const s = pickN(pool, n); setActiveSet(s); setCurrent(0); setAnswers({}); setMarked({}); setSkipped({}); startTimer(timeForN(n)); setPage('quiz'); }} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Start Test</button>
                 )}
                 <button onClick={()=>setPage('history')} className={glassBtn()}>Review Past Results</button>
                 <button onClick={()=>setPage('analytics')} className={glassBtn()}>Analytics</button>
@@ -289,7 +293,7 @@ const App = () => {
 
                   <div className="mt-6 flex items-center gap-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      <button onClick={()=>{ markSkipIfNeeded(current); setCurrent(c=>Math.max(0,c-1)); }} disabled={current===0} className={glassBtn("disabled:opacity-50")}>Previous</button>
+                      <button onClick={()=>{ if(!answers[current] && !marked[current]) setSkipped(p=>({...p,[current]:true})); setCurrent(c=>Math.max(0,c-1)); }} disabled={current===0} className={glassBtn("disabled:opacity-50")}>Previous</button>
                       <button onClick={()=>setAnswers(p=>{const c={...p}; delete c[current]; return c;})} className={glassBtn()}>Clear Response</button>
                       <button onClick={()=>setMarked(p=>({...p,[current]:!p[current]}))}
                               className={glassBtn(answers[current]? (marked[current]?" bg-blue-500/80 text-white border-blue-300 hover:bg-blue-600/80":"")
@@ -305,9 +309,9 @@ const App = () => {
                         <div className="mt-1">Unattempted: <b>{unattempted}</b></div>
                       </div>
                       {current < total-1 ? (
-                        <button onClick={()=>{ markSkipIfNeeded(current); setCurrent(c=>c+1); }} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Next</button>
+                        <button onClick={()=>{ if(!answers[current] && !marked[current]) setSkipped(p=>({...p,[current]:true})); setCurrent(c=>c+1); }} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Next</button>
                       ) : (
-                        <button onClick={()=>{ markSkipIfNeeded(current); stopTimer(); setPage('result'); }} className={solidBtn("bg-green-600 hover:bg-green-700")}>Submit</button>
+                        <button onClick={()=>{ if(!answers[current] && !marked[current]) setSkipped(p=>({...p,[current]:true})); stopTimer(); setPage('result'); }} className={solidBtn("bg-green-600 hover:bg-green-700")}>Submit</button>
                       )}
                     </div>
                   </div>
@@ -324,7 +328,14 @@ const App = () => {
                 </div>
                 <div className="grid grid-cols-5 gap-2">
                   {activeSet.map((_,i)=>{
-                    const s = status(i);
+                    const s = (() => {
+                      const answered = answers[i]!=null; const isMarked = !!marked[i]; const isSkipped = !!skipped[i];
+                      if (answered && isMarked) return 'attempted_marked';
+                      if (!answered && isMarked) return 'marked_only';
+                      if (!answered && isSkipped) return 'skipped';
+                      if (answered) return 'attempted';
+                      return 'unattempted';
+                    })();
                     const base="w-8 h-8 rounded-md flex items-center justify-center text-sm border shadow-sm transition-all duration-200 transform hover:scale-105 hover:shadow-md";
                     const ring=(i===current)?" ring-2 ring-teal-500":"";
                     const color = s==='attempted_marked' ? "bg-blue-500 text-white border-blue-600 hover:bg-blue-600"
@@ -332,7 +343,7 @@ const App = () => {
                                  : s==='skipped'         ? "bg-red-500 text-white border-red-600 hover:bg-red-600"
                                  : s==='attempted'       ? "bg-[#32CD32] text-white border-green-600 hover:brightness-95"
                                                          : "bg-white text-gray-800 border-gray-300 hover:bg-gray-100 hover:text-teal-600";
-                    return <button key={i} onClick={()=>{ markSkipIfNeeded(current); setCurrent(i); }} className={`${base} ${color} ${ring}`}>{i+1}</button>;
+                    return <button key={i} onClick={()=>{ if(!answers[current] && !marked[current]) setSkipped(p=>({...p,[current]:true})); setCurrent(i); }} className={`${base} ${color} ${ring}`}>{i+1}</button>;
                   })}
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
@@ -395,7 +406,7 @@ const App = () => {
     );
   }
 
-  /* ---- HISTORY (fixed: no hooks here) ---- */
+  /* ---- HISTORY ---- */
   if (page==='history') {
     const h = store.get();
     const sorted = [...h].sort((a,b)=>{
@@ -456,7 +467,7 @@ const App = () => {
     );
   }
 
-  /* ---- (Optional) Analytics placeholder to keep top buttons working ---- */
+  /* ---- ANALYTICS ---- */
   if (page==='analytics') {
     const hist = store.get();
     const agg = {};
