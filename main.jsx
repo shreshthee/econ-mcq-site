@@ -1,115 +1,101 @@
-// --- FancySelect (Portal version, with proper inside-click handling) ---
-function FancySelect({ options = [], value, onChange, label = 'Select' }) {
-  const [open, setOpen] = React.useState(false);
-  const [activeIndex, setActiveIndex] = React.useState(Math.max(0, options.findIndex(o => o === value)));
-  const btnRef = React.useRef(null);
-  const panelRef = React.useRef(null);
-  const [pos, setPos] = React.useState({ left: 0, top: 0, width: 0 });
+const { useState, useEffect } = React;
 
-  // keep activeIndex in sync if value changes externally
-  React.useEffect(() => {
-    const idx = options.findIndex(o => o === value);
-    if (idx >= 0) setActiveIndex(idx);
-  }, [value, options]);
+function App() {
+  const [mode, setMode] = useState("practice");
+  const [chapter, setChapter] = useState("All");
+  const [numQuestions, setNumQuestions] = useState(10);
+  const [available, setAvailable] = useState(42);
+  const [estimated, setEstimated] = useState("00:00");
 
-  React.useEffect(() => {
-    const closeOnOutside = (e) => {
-      if (!open) return;
-      const btn = btnRef.current;
-      const panel = panelRef.current;
-      const target = e.target;
-
-      // If click is on the button or inside the panel, do NOT close.
-      if ((btn && btn.contains(target)) || (panel && panel.contains(target))) return;
-
-      setOpen(false);
-    };
-
-    const reposition = () => {
-      if (!btnRef.current) return;
-      const r = btnRef.current.getBoundingClientRect();
-      setPos({ left: r.left, top: r.bottom + 6, width: r.width });
-    };
-
-    if (open) {
-      reposition();
-      window.addEventListener('scroll', reposition, true);
-      window.addEventListener('resize', reposition);
-      document.addEventListener('mousedown', closeOnOutside, true); // capture so it runs before React
-    }
-    return () => {
-      window.removeEventListener('scroll', reposition, true);
-      window.removeEventListener('resize', reposition);
-      document.removeEventListener('mousedown', closeOnOutside, true);
-    };
-  }, [open]);
-
-  const onKeyDown = (e) => {
-    if (!open) {
-      if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(true); }
-      return;
-    }
-    if (e.key === 'Escape') setOpen(false);
-    else if (e.key === 'ArrowDown') setActiveIndex(i => Math.min(options.length - 1, i + 1));
-    else if (e.key === 'ArrowUp')   setActiveIndex(i => Math.max(0, i - 1));
-    else if (e.key === 'Enter')     { onChange?.(options[activeIndex]); setOpen(false); }
-  };
-
-  // render dropdown in a portal; keep a ref to panel for inside-click checks
-  const panel = open ? ReactDOM.createPortal(
-    <div
-      ref={panelRef}
-      role="listbox"
-      style={{ position: 'fixed', left: pos.left, top: pos.top, width: pos.width, zIndex: 1000 }}
-      className="rounded-2xl border border-white/50
-                 bg-white/90 backdrop-blur-xl shadow-xl overflow-auto max-h-64 p-1
-                 animate-[fadeIn_.15s_ease]"
-    >
-      <ul>
-        {options.map((opt, idx) => {
-          const selected = opt === value;
-          const active   = idx === activeIndex;
-          return (
-            <li key={opt}
-                role="option"
-                aria-selected={selected}
-                onMouseEnter={() => setActiveIndex(idx)}
-                onMouseDown={(e) => e.preventDefault()} // prevent focus loss flicker
-                onClick={() => { onChange?.(opt); setOpen(false); }}
-                className={`px-4 py-3 rounded-xl cursor-pointer select-none transition
-                            ${selected ? 'bg-teal-500/90 text-white'
-                             : active  ? 'bg-gray-200/70'
-                                       : 'hover:bg-gray-100/80'}`}>
-              <div className="font-medium leading-snug">{opt}</div>
-            </li>
-          );
-        })}
-      </ul>
-    </div>,
-    document.body
-  ) : null;
+  // Auto-update estimated time (1.2 min per question)
+  useEffect(() => {
+    const totalMinutes = numQuestions * 1.2;
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = Math.floor(totalMinutes % 60);
+    const seconds = Math.round((totalMinutes * 60) % 60);
+    setEstimated(`${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`);
+  }, [numQuestions]);
 
   return (
-    <div className="relative w-full overflow-visible" onKeyDown={onKeyDown}>
-      <button
-        ref={btnRef}
-        type="button"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-3 py-2 rounded-lg
-                   border border-white/60 bg-white/60 backdrop-blur
-                   text-left shadow-sm hover:bg-white/70 transition"
-      >
-        <span className="truncate">{value ?? label}</span>
-        <svg className={`w-5 h-5 text-gray-600 transition-transform ${open ? 'rotate-180' : ''}`}
-             viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-          <path fillRule="evenodd"
-            d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z"
-            clipRule="evenodd" />
-        </svg>
-      </button>
-      {panel}
+    <div className="min-h-screen flex flex-col items-center justify-start pt-12 bg-gradient-to-br from-pink-50 to-teal-50">
+      <h1 className="text-3xl font-semibold text-gray-800 mb-4">
+        EconoLearn – CUET PG Economics
+      </h1>
+
+      <div className="bg-pink-100/80 backdrop-blur-lg p-6 rounded-2xl shadow-lg w-full max-w-3xl">
+        <h2 className="text-2xl font-bold mb-2">
+          EconoLearn – MCQ Practice for CUET PG Economics
+        </h2>
+        <p className="text-gray-700 mb-4">
+          Practice chapter-wise Economics PYQs with instant feedback.
+        </p>
+
+        {/* Chapter Filter */}
+        <label className="block text-sm font-medium mb-2">Chapter Filter</label>
+        <div className="relative mb-4 z-50">
+          <select
+            value={chapter}
+            onChange={(e) => setChapter(e.target.value)}
+            className="block w-full appearance-none bg-white border border-gray-300 text-gray-800 py-2 px-3 pr-8 rounded-md focus:ring-2 focus:ring-teal-400 focus:border-teal-400 transition-all duration-200"
+          >
+            <option value="All">All</option>
+            <option value="Theory of Consumer Behaviour">Theory of Consumer Behaviour</option>
+            <option value="Theory of Demand & Elasticity">Theory of Demand & Elasticity</option>
+            <option value="Theory of Production & Cost">Theory of Production & Cost</option>
+            <option value="Market Structures">Market Structures</option>
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-500">
+            ▼
+          </div>
+        </div>
+
+        {/* Mode */}
+        <div className="flex items-center mb-4 space-x-6">
+          <span className="font-medium">Mode</span>
+          <label className="flex items-center space-x-1">
+            <input type="radio" checked={mode === "practice"} onChange={() => setMode("practice")} />
+            <span>Practice</span>
+          </label>
+          <label className="flex items-center space-x-1">
+            <input type="radio" checked={mode === "test"} onChange={() => setMode("test")} />
+            <span>Test</span>
+          </label>
+        </div>
+
+        {/* No. of Questions */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 mb-4">
+          <div className="flex-1">
+            <label className="block text-sm font-medium mb-1">No. of Questions</label>
+            <input
+              type="number"
+              min="1"
+              max={available}
+              value={numQuestions}
+              onChange={(e) => setNumQuestions(Number(e.target.value))}
+              className="w-full border border-gray-300 rounded-md py-2 px-3 focus:ring-2 focus:ring-teal-400 focus:border-teal-400"
+            />
+            <p className="text-sm text-gray-600 mt-1">Available: {available}</p>
+          </div>
+          <div className="mt-2 sm:mt-6 text-sm text-gray-700">
+            Estimated Time: <b>{estimated}</b>
+          </div>
+        </div>
+
+        {/* Buttons */}
+        <div className="flex flex-wrap gap-3">
+          <button className="bg-teal-600 text-white py-2 px-4 rounded-md shadow-md hover:bg-teal-700 transition">
+            {mode === "practice" ? "Start Practice" : "Start Test"}
+          </button>
+          <button className="bg-white border border-gray-300 text-gray-800 py-2 px-4 rounded-md shadow-sm hover:bg-gray-100 transition">
+            Review Past Results
+          </button>
+          <button className="bg-white border border-gray-300 text-gray-800 py-2 px-4 rounded-md shadow-sm hover:bg-gray-100 transition">
+            Analytics
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
