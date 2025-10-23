@@ -1,17 +1,16 @@
-/* ===================== EconoLearn - main.jsx (browser-safe, with FancySelect) ===================== */
 const { useEffect, useMemo, useRef, useState } = React;
 
-/* ----------------- LocalStorage helpers ----------------- */
+/* ---------------- Local Storage Helpers ---------------- */
 const LS_KEY = "econ_mcq_history_v2";
 const store = {
   get() { try { return JSON.parse(localStorage.getItem(LS_KEY)) ?? []; } catch { return []; } },
   set(v) { try { localStorage.setItem(LS_KEY, JSON.stringify(v)); } catch {} }
 };
 
-/* ----------------- Time helpers (rule: 1.2 min per Q) ----------------- */
-const TIME_PER_Q_MIN = 1.2;                               // 1.2 minutes per question
-const timeForN = (n) => Math.round(n * TIME_PER_Q_MIN * 60); // seconds
-const fmt = (s) => {                                     // HH:MM:SS (or MM:SS if < 1 hour)
+/* ---------------- Timer Logic (1.2 min per Q) ---------------- */
+const TIME_PER_Q_MIN = 1.2;
+const timeForN = (n) => Math.round(n * TIME_PER_Q_MIN * 60);
+const fmt = (s) => {
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
   const sec = s % 60;
@@ -20,11 +19,15 @@ const fmt = (s) => {                                     // HH:MM:SS (or MM:SS i
     : `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
 };
 
-/* ----------------- Small utils ----------------- */
-const shuffle = (arr) => { const a = arr.slice(); for (let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]];} return a; };
-const pickN   = (arr, n) => shuffle(arr).slice(0, n);
+/* ---------------- Styling Helpers ---------------- */
+const glassCard = "relative rounded-3xl p-6 bg-white/30 backdrop-blur-xl border border-white/40 overflow-visible";
+const cardWrap  = "relative rounded-3xl p-[1px] bg-gradient-to-br from-rose-200/70 via-red-200/60 to-rose-200/70 shadow-lg shadow-red-200/40";
+const glassBtn  = (extra="") => `px-4 py-2 rounded-lg border border-white/40 bg-white/30 hover:bg-white/40
+                                  text-gray-800 backdrop-blur-xl transition shadow-sm hover:shadow
+                                  transform-gpu hover:scale-[1.03] active:scale-[0.99] ${extra}`;
+const solidBtn  = (extra="") => `px-5 py-2 rounded-lg text-white shadow-md transform-gpu hover:scale-[1.03] active:scale-[0.99] ${extra}`;
 
-/* ----------------- Background ----------------- */
+/* ---------------- Ganesh Background ---------------- */
 const Background = () => (
   <>
     <div className="pointer-events-none fixed left-0 top-1/2 -translate-y-1/2
@@ -35,43 +38,81 @@ const Background = () => (
   </>
 );
 
-/* ----------------- UI helpers ----------------- */
-const glassCard = "relative overflow-hidden rounded-3xl p-6 bg-white/30 backdrop-blur-xl border border-white/40";
-const cardWrap  = "relative rounded-3xl p-[1px] bg-gradient-to-br from-rose-200/70 via-red-200/60 to-rose-200/70 shadow-lg shadow-red-200/40";
-const glassBtn  = (extra="") => `px-4 py-2 rounded-lg border border-white/40 bg-white/30 hover:bg-white/40
-                                  text-gray-800 backdrop-blur-xl transition shadow-sm hover:shadow
-                                  transform-gpu hover:scale-[1.03] active:scale-[0.99] ${extra}`;
-const solidBtn  = (extra="") => `px-5 py-2 rounded-lg text-white shadow-md transform-gpu hover:scale-[1.03] active:scale-[0.99] ${extra}`;
-
-/* ----------------- FancySelect (glassy, animated, cross-browser) ----------------- */
+/* ---------------- FancySelect (Portal-based) ---------------- */
 function FancySelect({ options = [], value, onChange, label = 'Select' }) {
-  const [open, setOpen] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(Math.max(0, options.findIndex(o => o === value)));
-  const btnRef = useRef(null);
-  const listRef = useRef(null);
+  const [open, setOpen] = React.useState(false);
+  const [activeIndex, setActiveIndex] = React.useState(Math.max(0, options.findIndex(o => o === value)));
+  const btnRef = React.useRef(null);
+  const [pos, setPos] = React.useState({ left: 0, top: 0, width: 0 });
 
-  useEffect(() => {
-    const onDocClick = (e) => {
-      if (!btnRef.current || !listRef.current) return;
-      if (!btnRef.current.contains(e.target) && !listRef.current.contains(e.target)) setOpen(false);
+  React.useEffect(() => {
+    const close = (e) => {
+      if (!btnRef.current) return;
+      if (!open) return;
+      if (!btnRef.current.contains(e.target)) setOpen(false);
     };
-    document.addEventListener('mousedown', onDocClick);
-    return () => document.removeEventListener('mousedown', onDocClick);
-  }, []);
+    const reposition = () => {
+      if (!btnRef.current) return;
+      const r = btnRef.current.getBoundingClientRect();
+      setPos({ left: r.left, top: r.bottom + 6, width: r.width });
+    };
+    if (open) {
+      reposition();
+      window.addEventListener('scroll', reposition, true);
+      window.addEventListener('resize', reposition);
+      document.addEventListener('mousedown', close);
+    }
+    return () => {
+      window.removeEventListener('scroll', reposition, true);
+      window.removeEventListener('resize', reposition);
+      document.removeEventListener('mousedown', close);
+    };
+  }, [open]);
 
   const onKeyDown = (e) => {
     if (!open) {
-      if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(true); }
+      if (['ArrowDown', 'Enter', ' '].includes(e.key)) { e.preventDefault(); setOpen(true); }
       return;
     }
     if (e.key === 'Escape') setOpen(false);
-    else if (e.key === 'ArrowDown') setActiveIndex(i => Math.min(options.length-1, i+1));
-    else if (e.key === 'ArrowUp')   setActiveIndex(i => Math.max(0, i-1));
-    else if (e.key === 'Enter')     { const choice = options[activeIndex]; onChange?.(choice); setOpen(false); }
+    else if (e.key === 'ArrowDown') setActiveIndex(i => Math.min(options.length - 1, i + 1));
+    else if (e.key === 'ArrowUp')   setActiveIndex(i => Math.max(0, i - 1));
+    else if (e.key === 'Enter')     { onChange?.(options[activeIndex]); setOpen(false); }
   };
 
+  const panel = open ? ReactDOM.createPortal(
+    <div
+      role="listbox"
+      style={{ position: 'fixed', left: pos.left, top: pos.top, width: pos.width, zIndex: 1000 }}
+      className="rounded-2xl border border-white/50
+                 bg-white/90 backdrop-blur-xl shadow-xl overflow-auto max-h-64 p-1
+                 animate-[fadeIn_.15s_ease]"
+    >
+      <ul>
+        {options.map((opt, idx) => {
+          const selected = opt === value;
+          const active   = idx === activeIndex;
+          return (
+            <li key={opt}
+                role="option"
+                aria-selected={selected}
+                onMouseEnter={() => setActiveIndex(idx)}
+                onClick={() => { onChange?.(opt); setOpen(false); }}
+                className={`px-4 py-3 rounded-xl cursor-pointer select-none transition
+                            ${selected ? 'bg-teal-500/90 text-white'
+                             : active  ? 'bg-gray-200/70'
+                                       : 'hover:bg-gray-100/80'}`}>
+              <div className="font-medium leading-snug">{opt}</div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>,
+    document.body
+  ) : null;
+
   return (
-    <div className="relative w-full" onKeyDown={onKeyDown}>
+    <div className="relative w-full overflow-visible" onKeyDown={onKeyDown}>
       <button
         ref={btnRef}
         type="button"
@@ -90,494 +131,101 @@ function FancySelect({ options = [], value, onChange, label = 'Select' }) {
             clipRule="evenodd" />
         </svg>
       </button>
-
-      <div
-        ref={listRef}
-        role="listbox"
-        className={`absolute z-20 mt-2 w-full rounded-2xl border border-white/50
-                    bg-white/80 backdrop-blur-xl shadow-xl overflow-hidden
-                    transform transition-all duration-200 origin-top
-                    ${open ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}
-      >
-        <ul className="max-h-64 overflow-auto p-1">
-          {options.map((opt, idx) => {
-            const selected = opt === value;
-            const active   = idx === activeIndex;
-            return (
-              <li key={opt} role="option" aria-selected={selected}
-                  onMouseEnter={() => setActiveIndex(idx)}
-                  onClick={() => { onChange?.(opt); setOpen(false); }}
-                  className={`px-4 py-3 rounded-xl cursor-pointer transition-colors select-none
-                              ${selected ? 'bg-teal-500/90 text-white'
-                               : active  ? 'bg-gray-200/70'
-                                         : 'hover:bg-gray-100/80'}`}>
-                <div className="font-medium leading-snug">{opt}</div>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
+      {panel}
     </div>
   );
 }
 
-/* ----------------- TopBar ----------------- */
-const TopBar = ({ onHome, onHistory, onAnalytics, page, mode, timeLeft }) => (
+/* ---------------- TopBar ---------------- */
+const TopBar = ({ onHome, onHistory, onAnalytics }) => (
   <header className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b">
     <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
       <h1 className="text-base md:text-lg font-semibold">EconoLearn – CUET PG Economics</h1>
-      <div className="flex items-center gap-2 md:gap-3 text-sm">
-        {page==='home' && (
-          <>
-            <button onClick={onHistory}   className={glassBtn()}>Review Past Results</button>
-            <button onClick={onAnalytics} className={glassBtn()}>Analytics</button>
-          </>
-        )}
-        {page==='quiz' && mode==='test' && (
-          <span className={`px-2 py-1 rounded border ${timeLeft<=30?'border-red-500 text-red-600':'border-gray-300 text-gray-700'}`}>⏱ {fmt(timeLeft)}</span>
-        )}
-        {page!=='home' && <button onClick={onHome} className={glassBtn()}>Home</button>}
+      <div className="flex items-center gap-3 text-sm">
+        <button onClick={onHistory} className={glassBtn()}>Review Past Results</button>
+        <button onClick={onAnalytics} className={glassBtn()}>Analytics</button>
       </div>
     </div>
   </header>
 );
 
-/* ----------------- Progress ----------------- */
-const Progress = ({ i, total }) => {
-  const pct = total ? Math.round(((i+1)/total)*100) : 0;
+/* ---------------- App ---------------- */
+const App = () => {
+  const [page, setPage] = useState('home');
+  const [chapter, setChapter] = useState('All');
+  const [mode, setMode] = useState('practice');
+  const [questions, setQuestions] = useState([]);
+  const [testCount, setTestCount] = useState(10);
+
+  useEffect(() => {
+    fetch('questions.json?v=' + Date.now())
+      .then(r => r.json())
+      .then(d => Array.isArray(d) ? setQuestions(d) : setQuestions(d.questions || []))
+      .catch(()=>alert('Error loading questions.'));
+  }, []);
+
+  const filteredCount = chapter==='All'?questions.length:questions.filter(q=>q.chapter===chapter).length;
+  const est = timeForN(Math.min(testCount, filteredCount));
+
+  const chapterOptions = ['All', ...new Set(questions.map(q=>q.chapter).filter(Boolean))];
+
   return (
-    <div className="w-full bg-white/40 backdrop-blur h-2 rounded-full shadow-inner">
-      <div className="bg-teal-500 h-2 rounded-full transition-all" style={{width:`${pct}%`}} />
-    </div>
+    <>
+      <TopBar onHome={()=>setPage('home')} onHistory={()=>alert('History Page')} onAnalytics={()=>alert('Analytics Page')} />
+      <Background/>
+      <main className="relative max-w-6xl mx-auto px-4 py-10">
+        <section className={cardWrap}>
+          <div className={glassCard}>
+            <h2 className="text-3xl font-semibold">EconoLearn – MCQ Practice for CUET PG Economics</h2>
+            <p className="text-gray-700 mt-2">Practice chapter-wise Economics PYQs with instant feedback.</p>
+
+            <div className="mt-6 grid md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm mb-1 block">Chapter Filter</label>
+                <FancySelect value={chapter} onChange={setChapter} options={chapterOptions} />
+              </div>
+              <div>
+                <label className="text-sm mb-1 block">Mode</label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2"><input type="radio" checked={mode==='practice'} onChange={()=>setMode('practice')} /> Practice</label>
+                  <label className="flex items-center gap-2"><input type="radio" checked={mode==='test'} onChange={()=>setMode('test')} /> Test</label>
+                </div>
+              </div>
+            </div>
+
+            {mode==='test' && (
+              <div className="mt-4 grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm">No. of Questions</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max={filteredCount}
+                    value={testCount}
+                    onChange={e=>setTestCount(e.target.value)}
+                    className="w-full p-2 border rounded-lg bg-white/60 backdrop-blur"
+                  />
+                  <p className="text-xs text-gray-700 mt-1">Available: {filteredCount}</p>
+                </div>
+                <div className="flex items-end">
+                  <div className="p-2 border rounded bg-white/60 backdrop-blur text-sm">
+                    Estimated Time : {fmt(est)}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-6 flex gap-3 flex-wrap">
+              <button className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Start {mode==='test'?'Test':'Practice'}</button>
+              <button className={glassBtn()}>Review Past Results</button>
+              <button className={glassBtn()}>Analytics</button>
+            </div>
+          </div>
+        </section>
+      </main>
+    </>
   );
 };
 
-/* ====================================================================== */
-const App = () => {
-  const [page, setPage] = useState('home');           // home | quiz | result | history | analytics
-  const [mode, setMode] = useState('practice');       // practice | test
-  const [questions, setQuestions] = useState([]);
-  const [activeSet, setActiveSet] = useState([]);
-  const [chapter, setChapter] = useState('All');
-  const [testCount, setTestCount] = useState(10);
-
-  const [current, setCurrent] = useState(0);
-  const [answers, setAnswers] = useState({});
-  const [marked, setMarked] = useState({});           // ✅ fixed line
-  const [skipped, setSkipped] = useState({});
-
-  const [remaining, setRemaining] = useState(0);
-  const timer = useRef(null);
-
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState('');
-
-  /* ---- load questions.json ---- */
-  useEffect(() => {
-    fetch('questions.json?v=' + Date.now())
-      .then(r => { if(!r.ok) throw new Error('bad'); return r.json(); })
-      .then(d => Array.isArray(d) ? setQuestions(d) : setQuestions(d?.questions ?? []))
-      .catch(()=> setErr('Could not load questions.json'))
-      .finally(()=> setLoading(false));
-  }, []);
-
-  const total = activeSet.length;
-  const attempted = useMemo(()=>Object.keys(answers).filter(k=>answers[k]!=null).length,[answers]);
-  const unattempted = Math.max(0,total-attempted);
-  const score = useMemo(()=>activeSet.reduce((s,q,i)=>s+(answers[i]===q.answer?1:0),0),[answers,activeSet]);
-
-  const stopTimer = ()=>{ if (timer.current){ clearInterval(timer.current); timer.current=null; } };
-  const startTimer = (sec)=>{ stopTimer(); setRemaining(sec);
-    timer.current=setInterval(()=>{ setRemaining(p=>{ if(p<=1){ clearInterval(timer.current); setPage('result'); return 0; } return p-1; }); }, 1000);
-  };
-
-  const resetRun = ()=>{ setCurrent(0); setAnswers({}); setMarked({}); setSkipped({}); };
-
-  const startPractice = ()=>{ const s = chapter==='All'?questions:questions.filter(q=>q.chapter===chapter); setActiveSet(s); resetRun(); stopTimer(); setPage('quiz'); };
-  const startTest = ()=>{ const pool = chapter==='All'?questions:questions.filter(q=>q.chapter===chapter);
-    const req = Math.max(1, parseInt(testCount||1,10));
-    const n = Math.max(1, Math.min(req, pool.length));
-    const s = pickN(pool, n);
-    setActiveSet(s); resetRun(); startTimer(timeForN(n)); setPage('quiz'); };
-
-  useEffect(() => {
-    if (page !== 'result' || !total) return;
-    const entry = {
-      id: 'attempt_' + Date.now(),
-      timestamp: new Date().toISOString(),
-      mode, chapter, total, score,
-      percent: total ? Math.round((score/total)*100) : 0,
-      durationSec: mode==='test' ? timeForN(total) : null,
-      answers: Array.from({length: total}, (_,i)=>answers[i] ?? null),
-      questions: activeSet.map(q=>({chapter:q.chapter, question:q.question, options:q.options, answer:q.answer, source:q.source ?? null}))
-    };
-    const h = store.get(); h.unshift(entry); store.set(h.slice(0,50));
-  }, [page, total, score, answers, activeSet, mode, chapter]);
-
-  if (loading) {
-    return (<>
-      <TopBar page={page} mode={mode} timeLeft={remaining} onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
-      <main className="max-w-6xl mx-auto px-4 py-10 text-center text-gray-500">Loading questions…</main>
-    </>);
-  }
-  if (err) {
-    return (<>
-      <TopBar page={page} mode={mode} timeLeft={remaining} onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
-      <main className="max-w-6xl mx-auto px-4 py-10 text-center text-red-600">{err}</main>
-    </>);
-  }
-
-  /* ---- HOME ---- */
-  if (page==='home') {
-    const filteredCount = chapter==='All'?questions.length:questions.filter(q=>q.chapter===chapter).length;
-    const requestedN = Math.max(1, parseInt(testCount || 1, 10));
-    const effectiveN = Math.min(requestedN, filteredCount || 1);
-    const est = timeForN(effectiveN);
-
-    const chapterOptions = ['All', ...new Set(questions.map(q=>q.chapter).filter(Boolean))];
-
-    return (
-      <>
-        <TopBar page={page} mode={mode} timeLeft={remaining}
-                onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
-        <Background/>
-        <main className="relative max-w-6xl mx-auto px-4 py-10">
-          <section className={cardWrap}>
-            <div className={glassCard}>
-              <div className="pointer-events-none absolute -top-16 -left-16 w-72 h-72 bg-white/20 rounded-full blur-3xl"></div>
-              <h2 className="text-3xl font-semibold">EconoLearn – MCQ Practice for CUET PG Economics</h2>
-              <p className="text-gray-700 mt-2">Practice chapter-wise Economics PYQs with instant feedback.</p>
-
-              <div className="mt-6 grid md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm mb-1 block">Chapter Filter</label>
-                  <FancySelect
-                    label="Chapter"
-                    value={chapter}
-                    onChange={setChapter}
-                    options={chapterOptions}
-                  />
-                </div>
-                <div>
-                  <label className="text-sm mb-1 block">Mode</label>
-                  <div className="flex gap-4">
-                    <label className="flex items-center gap-2"><input type="radio" checked={mode==='practice'} onChange={()=>setMode('practice')} /> Practice</label>
-                    <label className="flex items-center gap-2"><input type="radio" checked={mode==='test'} onChange={()=>setMode('test')} /> Test</label>
-                  </div>
-                </div>
-              </div>
-
-              {mode==='test' && (
-                <div className="mt-4 grid md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm">No. of Questions</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max={filteredCount}
-                      value={testCount}
-                      onChange={e=>setTestCount(e.target.value)}
-                      className="w-full p-2 border rounded-lg bg-white/60 backdrop-blur"
-                    />
-                    <p className="text-xs text-gray-700 mt-1">
-                      Available: {filteredCount}
-                      {requestedN > filteredCount && (
-                        <span className="ml-2 text-rose-600 font-medium">
-                          (Requested {requestedN}, using {effectiveN})
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                  <div className="flex items-end">
-                    <div className="p-2 border rounded bg-white/60 backdrop-blur text-sm">
-                      Estimated Time : {fmt(est)}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="mt-6 flex gap-3 flex-wrap">
-                {mode==='practice' ? (
-                  <button onClick={startPractice} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Start Practice</button>
-                ) : (
-                  <button onClick={startTest} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Start Test</button>
-                )}
-                <button onClick={()=>setPage('history')} className={glassBtn()}>Review Past Results</button>
-                <button onClick={()=>setPage('analytics')} className={glassBtn()}>Analytics</button>
-              </div>
-            </div>
-          </section>
-        </main>
-      </>
-    );
-  }
-
-  /* ---- QUIZ ---- */
-  if (page==='quiz') {
-    const q = activeSet[current]; if (!q) return null;
-
-    const status = (i) => {
-      const answered = answers[i]!=null; const isMarked = !!marked[i]; const isSkipped = !!skipped[i];
-      if (answered && isMarked) return 'attempted_marked';
-      if (!answered && isMarked) return 'marked_only';
-      if (!answered && isSkipped) return 'skipped';
-      if (answered) return 'attempted';
-      return 'unattempted';
-    };
-
-    return (
-      <>
-        <TopBar page={page} mode={mode} timeLeft={remaining}
-                onHome={()=>{ stopTimer(); setPage('home'); }} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
-        <main className="max-w-6xl mx-auto px-4 py-6">
-          <div className="grid lg:grid-cols-[1fr,280px] gap-6">
-            <div>
-              <div className="mb-3 flex items-center justify-between gap-4">
-                <div className="text-sm text-gray-600">Question {current+1} of {total}</div>
-                <div className="w-1/2"><Progress i={current} total={total}/></div>
-              </div>
-
-              <section className={cardWrap}>
-                <div className={`${glassCard} animate-[slide_.35s_ease_both]`}>
-                  <div className="pointer-events-none absolute -top-16 -left-16 w-72 h-72 bg-white/20 rounded-full blur-3xl"></div>
-
-                  <div className="mb-2 text-xs uppercase tracking-wide text-gray-700">Chapter</div>
-                  <div className="mb-4 text-base font-medium">{q.chapter || '—'}</div>
-
-                  <h3 className="text-lg font-semibold leading-relaxed">{q.question}</h3>
-                  {q.source && <div className="mt-1 text-xs text-gray-700">Source: {q.source}</div>}
-
-                  <div className="mt-5 grid gap-3">
-                    {q.options.map((opt, idx) => {
-                      const active = answers[current] === opt;
-                      return (
-                        <label key={idx}
-                          className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition
-                                      bg-white/50 backdrop-blur hover:bg-white/70
-                                      ${active?'border-teal-500 ring-1 ring-teal-300':'border-white/50'}`}>
-                          <input type="radio" name={`q-${current}`} className="accent-teal-500"
-                                 checked={active}
-                                 onChange={()=>{ setAnswers(p=>({...p,[current]:opt})); setSkipped(p=>{const c={...p}; delete c[current]; return c;}); }} />
-                          <span className="font-medium">{String.fromCharCode(65+idx)}.</span>
-                          <span>{opt}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-
-                  <div className="mt-6 flex items-center gap-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button onClick={()=>{ if(!answers[current] && !marked[current]) setSkipped(p=>({...p,[current]:true})); setCurrent(c=>Math.max(0,c-1)); }} disabled={current===0} className={glassBtn("disabled:opacity-50")}>Previous</button>
-                      <button onClick={()=>setAnswers(p=>{const c={...p}; delete c[current]; return c;})} className={glassBtn()}>Clear Response</button>
-                      <button onClick={()=>setMarked(p=>({...p,[current]:!p[current]}))}
-                              className={glassBtn(answers[current]? (marked[current]?" bg-blue-500/80 text-white border-blue-300 hover:bg-blue-600/80":"")
-                                                      : (marked[current]?" bg-violet-500/80 text-white border-violet-300 hover:bg-violet-600/80":""))}>
-                        {marked[current] ? 'Unmark Review' : 'Mark for Review'}
-                      </button>
-                    </div>
-
-                    <div className="flex-1" />
-                    <div className="flex items-center gap-4">
-                      <div className="text-[13px] text-gray-700 text-right leading-tight">
-                        <div>Attempted: <b>{attempted}</b></div>
-                        <div className="mt-1">Unattempted: <b>{unattempted}</b></div>
-                      </div>
-                      {current < total-1 ? (
-                        <button onClick={()=>{ if(!answers[current] && !marked[current]) setSkipped(p=>({...p,[current]:true})); setCurrent(c=>c+1); }} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Next</button>
-                      ) : (
-                        <button onClick={()=>{ if(!answers[current] && !marked[current]) setSkipped(p=>({...p,[current]:true})); stopTimer(); setPage('result'); }} className={solidBtn("bg-green-600 hover:bg-green-700")}>Submit</button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </section>
-            </div>
-
-            {/* Palette */}
-            <aside className="lg:sticky lg:top-[72px]">
-              <div className="rounded-2xl p-4 bg-white/70 backdrop-blur border border-white/60 shadow">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-semibold">Question Palette</h4>
-                  {mode==='test' && <span className={`text-xs px-2 py-1 rounded border ${remaining<=30?'border-red-500 text-red-600':'border-gray-300 text-gray-700'}`}>⏱ {fmt(remaining)}</span>}
-                </div>
-                <div className="grid grid-cols-5 gap-2">
-                  {activeSet.map((_,i)=>{
-                    const answered = answers[i]!=null; const isMarked = !!marked[i]; const isSkipped = !!skipped[i];
-                    const s = answered && isMarked ? 'attempted_marked'
-                            : !answered && isMarked ? 'marked_only'
-                            : !answered && isSkipped ? 'skipped'
-                            : answered ? 'attempted'
-                            : 'unattempted';
-                    const base="w-8 h-8 rounded-md flex items-center justify-center text-sm border shadow-sm transition-all duration-200 transform hover:scale-105 hover:shadow-md";
-                    const ring=(i===current)?" ring-2 ring-teal-500":"";
-                    const color = s==='attempted_marked' ? "bg-blue-500 text-white border-blue-600 hover:bg-blue-600"
-                                 : s==='marked_only'     ? "bg-violet-500 text-white border-violet-600 hover:bg-violet-600"
-                                 : s==='skipped'         ? "bg-red-500 text-white border-red-600 hover:bg-red-600"
-                                 : s==='attempted'       ? "bg-[#32CD32] text-white border-green-600 hover:brightness-95"
-                                                         : "bg-white text-gray-800 border-gray-300 hover:bg-gray-100 hover:text-teal-600";
-                    return <button key={i} onClick={()=>{ if(!answers[current] && !marked[current]) setSkipped(p=>({...p,[current]:true})); setCurrent(i); }} className={`${base} ${color} ${ring}`}>{i+1}</button>;
-                  })}
-                </div>
-                <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-                  <div className="flex items-center gap-2"><span className="w-3 h-3 rounded bg-white border border-gray-300"></span> Unattempted</div>
-                  <div className="flex items-center gap-2"><span className="w-3 h-3 rounded bg-[#32CD32] border border-green-600"></span> Attempted</div>
-                  <div className="flex items-center gap-2"><span className="w-3 h-3 rounded bg-violet-500 border border-violet-600"></span> Marked (no answer)</div>
-                  <div className="flex items-center gap-2"><span className="w-3 h-3 rounded bg-blue-500 border border-blue-600"></span> Attempted + Marked</div>
-                  <div className="flex items-center gap-2"><span className="w-3 h-3 rounded bg-red-500 border border-red-600"></span> Skipped</div>
-                </div>
-                <div className="mt-4">
-                  <button onClick={()=>{ stopTimer(); setPage('result'); }} className={solidBtn("w-full bg-green-600 hover:bg-green-700")}>Submit Test</button>
-                </div>
-              </div>
-            </aside>
-          </div>
-        </main>
-      </>
-    );
-  }
-
-  /* ---- RESULT ---- */
-  if (page==='result') {
-    const percent = total?Math.round(score/total*100):0;
-    return (
-      <>
-        <TopBar page={page} mode={mode} timeLeft={remaining}
-                onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
-        <Background/>
-        <main className="relative max-w-6xl mx-auto px-4 py-8">
-          <section className={cardWrap}>
-            <div className={glassCard}>
-              <div className="pointer-events-none absolute -top-16 -left-16 w-72 h-72 bg-white/20 rounded-full blur-3xl"></div>
-              <h2 className="text-xl font-semibold">Result</h2>
-              <p className="mt-1">Score : {score}/{total} ({percent}%)</p>
-              {percent>=80 && <p className="text-sm text-teal-700 mt-1">Great job! 🎉</p>}
-
-              <div className="space-y-3 mt-4">
-                {activeSet.map((qq,i)=>{
-                  const sel=answers[i]; const ok=sel===qq.answer;
-                  return (
-                    <div key={i} className="p-3 border rounded bg-white/60 backdrop-blur">
-                      <div className="flex justify-between">
-                        <b>Q{i+1}. {qq.question}</b>
-                        <span className={`text-xs px-2 py-1 rounded ${ok?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}`}>{ok?'Correct':'Incorrect'}</span>
-                      </div>
-                      <p className="text-sm mt-1">Your: {sel||'Not answered'} | Correct: <b className="text-green-700">{qq.answer}</b></p>
-                      {qq.explanation && <p className="text-sm text-gray-700 mt-1">{qq.explanation}</p>}
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="mt-4">
-                <button onClick={()=>setPage('home')} className={glassBtn()}>Home</button>
-              </div>
-            </div>
-          </section>
-        </main>
-      </>
-    );
-  }
-
-  /* ---- HISTORY ---- */
-  if (page==='history') {
-    const h = store.get();
-    const [sortBy, setSortBy] = useState('date_desc');
-    const sorted = [...h].sort((a,b)=>{
-      if (sortBy==='date_desc') return new Date(b.timestamp) - new Date(a.timestamp);
-      if (sortBy==='date_asc')  return new Date(a.timestamp) - new Date(b.timestamp);
-      if (sortBy==='score_desc') return (b.percent||0) - (a.percent||0);
-      if (sortBy==='score_asc')  return (a.percent||0) - (b.percent||0);
-      return 0;
-    });
-
-    return (
-      <>
-        <TopBar page={page} mode={mode} timeLeft={remaining}
-                onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
-        <main className="max-w-6xl mx-auto px-4 py-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">Past Results</h2>
-            <select className="border rounded px-2 py-1" value={sortBy} onChange={e=>setSortBy(e.target.value)}>
-              <option value="date_desc">Newest first</option>
-              <option value="date_asc">Oldest first</option>
-              <option value="score_desc">Score high → low</option>
-              <option value="score_asc">Score low → high</option>
-            </select>
-          </div>
-          {sorted.length===0 ? (
-            <div className="text-gray-500">No attempts yet.</div>
-          ) : (
-            <div className="space-y-4">
-              {sorted.map(a=>(
-                <details key={a.id} className="rounded-xl border bg-white/70 backdrop-blur p-4">
-                  <summary className="cursor-pointer flex items-center justify-between">
-                    <div>
-                      <div className="font-semibold">{new Date(a.timestamp).toLocaleString()} • {a.mode} • {a.chapter}</div>
-                      <div className="text-sm text-gray-700">Score: {a.score}/{a.total} ({a.percent}%) {a.durationSec?`• Time: ${fmt(a.durationSec)}`:''}</div>
-                    </div>
-                  </summary>
-                  <div className="mt-3 space-y-2">
-                    {a.questions.map((q,i)=>{
-                      const your=a.answers[i]; const ok=your===q.answer;
-                      return (
-                        <div key={i} className="p-3 border rounded bg-white/60">
-                          <div className="flex justify-between">
-                            <b>Q{i+1}. {q.question}</b>
-                            <span className={`text-xs px-2 py-1 rounded ${ok?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}`}>{ok?'Correct':'Incorrect'}</span>
-                          </div>
-                          <div className="text-sm text-gray-700">Chapter: {q.chapter || '—'} • Source: {q.source || '—'}</div>
-                          <div className="text-sm">Your: {your || 'Not answered'} • Correct: <b className="text-green-700">{q.answer}</b></div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </details>
-              ))}
-            </div>
-          )}
-        </main>
-      </>
-    );
-  }
-
-  /* ---- ANALYTICS ---- */
-  if (page==='analytics') {
-    const hist = store.get();
-    const agg = {};
-    hist.forEach(at => at.questions.forEach((q,i)=>{
-      const ch=q.chapter||'Unknown'; if(!agg[ch]) agg[ch]={correct:0,total:0};
-      agg[ch].total++; if(at.answers[i]===q.answer) agg[ch].correct++;
-    }));
-    const rows = Object.entries(agg).map(([ch,{correct,total}])=>({ch,correct,total,pct: total?Math.round(correct/total*100):0}))
-                                   .sort((a,b)=>a.ch.localeCompare(b.ch));
-
-    return (
-      <>
-        <TopBar page={page} mode={mode} timeLeft={remaining}
-                onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
-        <main className="max-w-6xl mx-auto px-4 py-8">
-          <h2 className="text-xl font-semibold mb-4">Chapter-wise Analytics</h2>
-          {rows.length===0 ? <div className="text-gray-500">No data yet.</div> : (
-            <div className="space-y-3">
-              {rows.map(r=>(
-                <div key={r.ch} className="p-3 border rounded-xl bg-white/70 backdrop-blur">
-                  <div className="flex items-center justify-between">
-                    <div className="font-semibold">{r.ch}</div>
-                    <div className="text-sm text-gray-700">{r.correct}/{r.total} correct • {r.pct}%</div>
-                  </div>
-                  <div className="mt-2 h-3 w-full bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-teal-500" style={{width:`${r.pct}%`}}/>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </main>
-      </>
-    );
-  }
-
-  return null;
-};
-/* ====================================================================== */
-
+/* ---------------- Mount ---------------- */
 ReactDOM.createRoot(document.getElementById('root')).render(<App />);
