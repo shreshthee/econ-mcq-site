@@ -163,11 +163,11 @@ const App = () => {
 
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState({});
-  const [marked, setMarked] = useState({});
+  the [marked, setMarked] = useState({});
   const [skipped, setSkipped] = useState({});
 
   const [remaining, setRemaining] = useState(0);
-  const timer = useRef(null);
+  const timer = React.useRef(null);
 
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
@@ -184,7 +184,6 @@ const App = () => {
 
   const total = activeSet.length;
   const attempted = useMemo(()=>Object.keys(answers).filter(k=>answers[k]!=null).length,[answers]);
-  const unattempted = Math.max(0,total-attempted);
   const score = useMemo(()=>activeSet.reduce((s,q,i)=>s+(answers[i]===q.answer?1:0),0),[answers,activeSet]);
 
   const stopTimer = ()=>{ if (timer.current){ clearInterval(timer.current); timer.current=null; } };
@@ -215,18 +214,8 @@ const App = () => {
     const h = store.get(); h.unshift(entry); store.set(h.slice(0,50));
   }, [page, total, score, answers, activeSet, mode, chapter]);
 
-  if (loading) {
-    return (<>
-      <TopBar page={page} mode={mode} timeLeft={remaining} onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
-      <main className="max-w-6xl mx-auto px-4 py-10 text-center text-gray-500">Loading questions…</main>
-    </>);
-  }
-  if (err) {
-    return (<>
-      <TopBar page={page} mode={mode} timeLeft={remaining} onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
-      <main className="max-w-6xl mx-auto px-4 py-10 text-center text-red-600">{err}</main>
-    </>);
-  }
+  if (loading) return <main className="p-8 text-center">Loading…</main>;
+  if (err)      return <main className="p-8 text-center text-red-600">{err}</main>;
 
   /* ---- HOME ---- */
   if (page==='home') {
@@ -245,20 +234,13 @@ const App = () => {
         <main className="relative max-w-6xl mx-auto px-4 py-10">
           <section className={cardWrap}>
             <div className={glassCard}>
-              <div className="pointer-events-none absolute -top-16 -left-16 w-72 h-72 bg-white/20 rounded-full blur-3xl"></div>
               <h2 className="text-3xl font-semibold">EconoLearn – MCQ Practice for CUET PG Economics</h2>
               <p className="text-gray-700 mt-2">Practice chapter-wise Economics PYQs with instant feedback.</p>
 
               <div className="mt-6 grid md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm mb-1 block">Chapter Filter</label>
-                  {/* FancySelect used here */}
-                  <FancySelect
-                    label="Chapter"
-                    value={chapter}
-                    onChange={setChapter}
-                    options={chapterOptions}
-                  />
+                  <FancySelect label="Chapter" value={chapter} onChange={setChapter} options={chapterOptions} />
                 </div>
                 <div>
                   <label className="text-sm mb-1 block">Mode</label>
@@ -273,22 +255,10 @@ const App = () => {
                 <div className="mt-4 grid md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm">No. of Questions</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max={filteredCount}
-                      value={testCount}
-                      onChange={e=>setTestCount(e.target.value)}
-                      className="w-full p-2 border rounded-lg bg-white/60 backdrop-blur"
-                    />
-                    <p className="text-xs text-gray-700 mt-1">
-                      Available: {filteredCount}
-                      {requestedN > filteredCount && (
-                        <span className="ml-2 text-rose-600 font-medium">
-                          (Requested {requestedN}, using {effectiveN})
-                        </span>
-                      )}
-                    </p>
+                    <input type="number" min="1" max={filteredCount} value={testCount}
+                           onChange={e=>setTestCount(e.target.value)}
+                           className="w-full p-2 border rounded-lg bg-white/60 backdrop-blur" />
+                    <p className="text-xs text-gray-700 mt-1">Available: {filteredCount}</p>
                   </div>
                   <div className="flex items-end">
                     <div className="p-2 border rounded bg-white/60 backdrop-blur text-sm">
@@ -299,11 +269,9 @@ const App = () => {
               )}
 
               <div className="mt-6 flex gap-3 flex-wrap">
-                {mode==='practice' ? (
-                  <button onClick={startPractice} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Start Practice</button>
-                ) : (
-                  <button onClick={startTest} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Start Test</button>
-                )}
+                {mode==='practice'
+                  ? <button onClick={startPractice} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Start Practice</button>
+                  : <button onClick={startTest} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Start Test</button>}
                 <button onClick={()=>setPage('history')} className={glassBtn()}>Review Past Results</button>
                 <button onClick={()=>setPage('analytics')} className={glassBtn()}>Analytics</button>
               </div>
@@ -318,31 +286,20 @@ const App = () => {
   if (page==='quiz') {
     const q = activeSet[current]; if (!q) return null;
 
-    const status = (i) => {
-      const answered = answers[i]!=null; const isMarked = !!marked[i]; const isSkipped = !!skipped[i];
-      if (answered && isMarked) return 'attempted_marked';
-      if (!answered && isMarked) return 'marked_only';
-      if (!answered && isSkipped) return 'skipped';
-      if (answered) return 'attempted';
-      return 'unattempted';
-    };
-
     return (
       <>
         <TopBar page={page} mode={mode} timeLeft={remaining}
-                onHome={()=>{ stopTimer(); setPage('home'); }} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
+                onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
         <main className="max-w-6xl mx-auto px-4 py-6">
           <div className="grid lg:grid-cols-[1fr,280px] gap-6">
             <div>
               <div className="mb-3 flex items-center justify-between gap-4">
-                <div className="text-sm text-gray-600">Question {current+1} of {total}</div>
-                <div className="w-1/2"><Progress i={current} total={total}/></div>
+                <div className="text-sm text-gray-600">Question {current+1} of {activeSet.length}</div>
+                <div className="w-1/2"><Progress i={current} total={activeSet.length}/></div>
               </div>
 
               <section className={cardWrap}>
-                <div className={`${glassCard} animate-[slide_.35s_ease_both]`}>
-                  <div className="pointer-events-none absolute -top-16 -left-16 w-72 h-72 bg-white/20 rounded-full blur-3xl"></div>
-
+                <div className={glassCard}>
                   <div className="mb-2 text-xs uppercase tracking-wide text-gray-700">Chapter</div>
                   <div className="mb-4 text-base font-medium">{q.chapter || '—'}</div>
 
@@ -359,7 +316,7 @@ const App = () => {
                                       ${active?'border-teal-500 ring-1 ring-teal-300':'border-white/50'}`}>
                           <input type="radio" name={`q-${current}`} className="accent-teal-500"
                                  checked={active}
-                                 onChange={()=>{ setAnswers(p=>({...p,[current]:opt})); setSkipped(p=>{const c={...p}; delete c[current]; return c;}); }} />
+                                 onChange={()=> setAnswers(p=>({...p,[current]:opt})) } />
                           <span className="font-medium">{String.fromCharCode(65+idx)}.</span>
                           <span>{opt}</span>
                         </label>
@@ -368,28 +325,14 @@ const App = () => {
                   </div>
 
                   <div className="mt-6 flex items-center gap-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button onClick={()=>{ if(!answers[current] && !marked[current]) setSkipped(p=>({...p,[current]:true})); setCurrent(c=>Math.max(0,c-1)); }} disabled={current===0} className={glassBtn("disabled:opacity-50")}>Previous</button>
-                      <button onClick={()=>setAnswers(p=>{const c={...p}; delete c[current]; return c;})} className={glassBtn()}>Clear Response</button>
-                      <button onClick={()=>setMarked(p=>({...p,[current]:!p[current]}))}
-                              className={glassBtn(answers[current]? (marked[current]?" bg-blue-500/80 text-white border-blue-300 hover:bg-blue-600/80":"")
-                                                      : (marked[current]?" bg-violet-500/80 text-white border-violet-300 hover:bg-violet-600/80":""))}>
-                        {marked[current] ? 'Unmark Review' : 'Mark for Review'}
-                      </button>
-                    </div>
-
-                    <div className="flex-1" />
-                    <div className="flex items-center gap-4">
-                      <div className="text-[13px] text-gray-700 text-right leading-tight">
-                        <div>Attempted: <b>{Object.keys(answers).filter(k=>answers[k]!=null).length}</b></div>
-                        <div className="mt-1">Unattempted: <b>{Math.max(0,total-Object.keys(answers).filter(k=>answers[k]!=null).length)}</b></div>
-                      </div>
-                      {current < total-1 ? (
-                        <button onClick={()=>{ if(!answers[current] && !marked[current]) setSkipped(p=>({...p,[current]:true})); setCurrent(c=>c+1); }} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Next</button>
-                      ) : (
-                        <button onClick={()=>{ if(!answers[current] && !marked[current]) setSkipped(p=>({...p,[current]:true})); stopTimer(); setPage('result'); }} className={solidBtn("bg-green-600 hover:bg-green-700")}>Submit</button>
-                      )}
-                    </div>
+                    <button onClick={()=>setCurrent(c=>Math.max(0,c-1))} disabled={current===0}
+                            className={glassBtn("disabled:opacity-50")}>Previous</button>
+                    <button onClick={()=>setAnswers(p=>{const c={...p}; delete c[current]; return c;})}
+                            className={glassBtn()}>Clear Response</button>
+                    <button onClick={()=>setCurrent(c=>Math.min(activeSet.length-1,c+1))}
+                            className={solidBtn("bg-teal-600 hover:bg-teal-700 ml-auto")}>
+                      {current<activeSet.length-1 ? 'Next' : 'Submit'}
+                    </button>
                   </div>
                 </div>
               </section>
@@ -404,31 +347,13 @@ const App = () => {
                 </div>
                 <div className="grid grid-cols-5 gap-2">
                   {activeSet.map((_,i)=>{
-                    const answered = answers[i]!=null; const isMarked = !!marked[i]; const isSkipped = !!skipped[i];
-                    const s = answered && isMarked ? 'attempted_marked'
-                            : !answered && isMarked ? 'marked_only'
-                            : !answered && isSkipped ? 'skipped'
-                            : answered ? 'attempted'
-                            : 'unattempted';
-                    const base="w-8 h-8 rounded-md flex items-center justify-center text-sm border shadow-sm transition-all duration-200 transform hover:scale-105 hover:shadow-md";
+                    const answered = answers[i]!=null;
+                    const base="w-8 h-8 rounded-md flex items-center justify-center text-sm border shadow-sm";
                     const ring=(i===current)?" ring-2 ring-teal-500":"";
-                    const color = s==='attempted_marked' ? "bg-blue-500 text-white border-blue-600 hover:bg-blue-600"
-                                 : s==='marked_only'     ? "bg-violet-500 text-white border-violet-600 hover:bg-violet-600"
-                                 : s==='skipped'         ? "bg-red-500 text-white border-red-600 hover:bg-red-600"
-                                 : s==='attempted'       ? "bg-[#32CD32] text-white border-green-600 hover:brightness-95"
-                                                         : "bg-white text-gray-800 border-gray-300 hover:bg-gray-100 hover:text-teal-600";
-                    return <button key={i} onClick={()=>{ if(!answers[current] && !marked[current]) setSkipped(p=>({...p,[current]:true})); setCurrent(i); }} className={`${base} ${color} ${ring}`}>{i+1}</button>;
+                    const color = answered ? "bg-[#32CD32] text-white border-green-600 hover:brightness-95"
+                                           : "bg-white text-gray-800 border-gray-300 hover:bg-gray-100 hover:text-teal-600";
+                    return <button key={i} onClick={()=>setCurrent(i)} className={`${base} ${color} ${ring}`}>{i+1}</button>;
                   })}
-                </div>
-                <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-                  <div className="flex items-center gap-2"><span className="w-3 h-3 rounded bg-white border border-gray-300"></span> Unattempted</div>
-                  <div className="flex items-center gap-2"><span className="w-3 h-3 rounded bg-[#32CD32] border border-green-600"></span> Attempted</div>
-                  <div className="flex items-center gap-2"><span className="w-3 h-3 rounded bg-violet-500 border border-violet-600"></span> Marked (no answer)</div>
-                  <div className="flex items-center gap-2"><span className="w-3 h-3 rounded bg-blue-500 border border-blue-600"></span> Attempted + Marked</div>
-                  <div className="flex items-center gap-2"><span className="w-3 h-3 rounded bg-red-500 border border-red-600"></span> Skipped</div>
-                </div>
-                <div className="mt-4">
-                  <button onClick={()=>{ stopTimer(); setPage('result'); }} className={solidBtn("w-full bg-green-600 hover:bg-green-700")}>Submit Test</button>
                 </div>
               </div>
             </aside>
@@ -440,38 +365,19 @@ const App = () => {
 
   /* ---- RESULT ---- */
   if (page==='result') {
+    const total = activeSet.length;
+    const score = activeSet.reduce((s,q,i)=>s+(answers[i]===q.answer?1:0),0);
     const percent = total?Math.round(score/total*100):0;
     return (
       <>
-        <TopBar page={page} mode={mode} timeLeft={remaining}
-                onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
+        <TopBar page={page} mode={mode} onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
         <Background/>
         <main className="relative max-w-6xl mx-auto px-4 py-8">
           <section className={cardWrap}>
             <div className={glassCard}>
-              <div className="pointer-events-none absolute -top-16 -left-16 w-72 h-72 bg-white/20 rounded-full blur-3xl"></div>
               <h2 className="text-xl font-semibold">Result</h2>
               <p className="mt-1">Score : {score}/{total} ({percent}%)</p>
-              {percent>=80 && <p className="text-sm text-teal-700 mt-1">Great job! 🎉</p>}
-
-              <div className="space-y-3 mt-4">
-                {activeSet.map((qq,i)=>{
-                  const sel=answers[i]; const ok=sel===qq.answer;
-                  return (
-                    <div key={i} className="p-3 border rounded bg-white/60 backdrop-blur">
-                      <div className="flex justify-between">
-                        <b>Q{i+1}. {qq.question}</b>
-                        <span className={`text-xs px-2 py-1 rounded ${ok?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}`}>{ok?'Correct':'Incorrect'}</span>
-                      </div>
-                      <p className="text-sm mt-1">Your: {sel||'Not answered'} | Correct: <b className="text-green-700">{qq.answer}</b></p>
-                      {qq.explanation && <p className="text-sm text-gray-700 mt-1">{qq.explanation}</p>}
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="mt-4">
-                <button onClick={()=>setPage('home')} className={glassBtn()}>Home</button>
-              </div>
+              <div className="mt-4"><button onClick={()=>setPage('home')} className={glassBtn()}>Home</button></div>
             </div>
           </section>
         </main>
@@ -482,57 +388,18 @@ const App = () => {
   /* ---- HISTORY ---- */
   if (page==='history') {
     const h = store.get();
-    const [sortBy, setSortBy] = useState('date_desc');
-    const sorted = [...h].sort((a,b)=>{
-      if (sortBy==='date_desc') return new Date(b.timestamp) - new Date(a.timestamp);
-      if (sortBy==='date_asc')  return new Date(a.timestamp) - new Date(b.timestamp);
-      if (sortBy==='score_desc') return (b.percent||0) - (a.percent||0);
-      if (sortBy==='score_asc')  return (a.percent||0) - (b.percent||0);
-      return 0;
-    });
-
     return (
       <>
-        <TopBar page={page} mode={mode} timeLeft={remaining}
-                onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
+        <TopBar page={page} onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
         <main className="max-w-6xl mx-auto px-4 py-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">Past Results</h2>
-            <select className="border rounded px-2 py-1" value={sortBy} onChange={e=>setSortBy(e.target.value)}>
-              <option value="date_desc">Newest first</option>
-              <option value="date_asc">Oldest first</option>
-              <option value="score_desc">Score high → low</option>
-              <option value="score_asc">Score low → high</option>
-            </select>
-          </div>
-          {sorted.length===0 ? (
-            <div className="text-gray-500">No attempts yet.</div>
-          ) : (
-            <div className="space-y-4">
-              {sorted.map(a=>(
-                <details key={a.id} className="rounded-xl border bg-white/70 backdrop-blur p-4">
-                  <summary className="cursor-pointer flex items-center justify-between">
-                    <div>
-                      <div className="font-semibold">{new Date(a.timestamp).toLocaleString()} • {a.mode} • {a.chapter}</div>
-                      <div className="text-sm text-gray-700">Score: {a.score}/{a.total} ({a.percent}%) {a.durationSec?`• Time: ${fmt(a.durationSec)}`:''}</div>
-                    </div>
-                  </summary>
-                  <div className="mt-3 space-y-2">
-                    {a.questions.map((q,i)=>{
-                      const your=a.answers[i]; const ok=your===q.answer;
-                      return (
-                        <div key={i} className="p-3 border rounded bg-white/60">
-                          <div className="flex justify-between">
-                            <b>Q{i+1}. {q.question}</b>
-                            <span className={`text-xs px-2 py-1 rounded ${ok?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}`}>{ok?'Correct':'Incorrect'}</span>
-                          </div>
-                          <div className="text-sm text-gray-700">Chapter: {q.chapter || '—'} • Source: {q.source || '—'}</div>
-                          <div className="text-sm">Your: {your || 'Not answered'} • Correct: <b className="text-green-700">{q.answer}</b></div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </details>
+          <h2 className="text-xl font-semibold mb-4">Past Results</h2>
+          {h.length===0 ? <div className="text-gray-500">No attempts yet.</div> : (
+            <div className="space-y-3">
+              {h.map(a=>(
+                <div key={a.id} className="p-3 border rounded bg-white/70 backdrop-blur">
+                  <div className="font-semibold">{new Date(a.timestamp).toLocaleString()} • {a.mode} • {a.chapter}</div>
+                  <div className="text-sm text-gray-700">Score: {a.score}/{a.total} ({a.percent}%)</div>
+                </div>
               ))}
             </div>
           )}
@@ -541,11 +408,11 @@ const App = () => {
     );
   }
 
-  /* ---- ANALYTICS ---- */
+  /* ---- ANALYTICS (very simple) ---- */
   if (page==='analytics') {
     const hist = store.get();
     const agg = {};
-    hist.forEach(at => at.questions.forEach((q,i)=>{
+    hist.forEach(at => at.questions?.forEach((q,i)=>{
       const ch=q.chapter||'Unknown'; if(!agg[ch]) agg[ch]={correct:0,total:0};
       agg[ch].total++; if(at.answers[i]===q.answer) agg[ch].correct++;
     }));
@@ -554,8 +421,7 @@ const App = () => {
 
     return (
       <>
-        <TopBar page={page} mode={mode} timeLeft={remaining}
-                onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
+        <TopBar page={page} onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
         <main className="max-w-6xl mx-auto px-4 py-8">
           <h2 className="text-xl font-semibold mb-4">Chapter-wise Analytics</h2>
           {rows.length===0 ? <div className="text-gray-500">No data yet.</div> : (
