@@ -1,4 +1,4 @@
-/* ===================== EconoLearn - main.jsx (timer fixed) ===================== */
+/* ===================== EconoLearn - main.jsx (final, HH:MM:SS) ===================== */
 const { useEffect, useMemo, useRef, useState } = React;
 
 /* ----------------- LocalStorage helpers ----------------- */
@@ -8,17 +8,23 @@ const store = {
   set(v) { try { localStorage.setItem(LS_KEY, JSON.stringify(v)); } catch {} }
 };
 
-/* ----------------- Time helpers (FIXED) ----------------- */
-// single source of truth for time-per-question rule
-const TIME_PER_Q_MIN = 1.2;              // 1.2 minutes per question
+/* ----------------- Time helpers (rule: 1.2 min per Q) ----------------- */
+const TIME_PER_Q_MIN = 1.2;                              // 1.2 minutes per question
 const timeForN = (n) => Math.round(n * TIME_PER_Q_MIN * 60); // seconds
-const fmt = (s) => `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+const fmt = (s) => {                                    // HH:MM:SS (or MM:SS if < 1 hour)
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return h > 0
+    ? `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
+    : `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+};
 
 /* ----------------- Small utils ----------------- */
 const shuffle = (arr) => { const a = arr.slice(); for (let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]];} return a; };
 const pickN = (arr, n) => shuffle(arr).slice(0, n);
 
-/* ----------------- Background ----------------- */
+/* ----------------- Background (Ganesh left, responsive) ----------------- */
 const Background = () => (
   <>
     <div className="pointer-events-none fixed left-0 top-1/2 -translate-y-1/2
@@ -37,7 +43,7 @@ const glassBtn  = (extra="") => `px-4 py-2 rounded-lg border border-white/40 bg-
                                   transform-gpu hover:scale-[1.03] active:scale-[0.99] ${extra}`;
 const solidBtn  = (extra="") => `px-5 py-2 rounded-lg text-white shadow-md transform-gpu hover:scale-[1.03] active:scale-[0.99] ${extra}`;
 
-/* ----------------- Confetti ----------------- */
+/* ----------------- Confetti (on high score) ----------------- */
 const Confetti = ({ on }) => {
   useEffect(() => {
     if (!on) return;
@@ -94,6 +100,7 @@ const Progress = ({ i, total }) => {
 
 /* ====================================================================== */
 const App = () => {
+  /* ---- global state ---- */
   const [page, setPage] = useState('home');           // home | quiz | result | history | analytics
   const [mode, setMode] = useState('practice');       // practice | test
   const [questions, setQuestions] = useState([]);
@@ -111,7 +118,7 @@ const App = () => {
 
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
-  const [sortBy, setSortBy] = useState('date_desc');
+  const [sortBy, setSortBy] = useState('date_desc');  // history sort
 
   /* ---- load questions ---- */
   useEffect(() => {
@@ -137,13 +144,18 @@ const App = () => {
   /* ---- navigation helpers ---- */
   const resetRun = ()=>{ setCurrent(0); setAnswers({}); setMarked({}); setSkipped({}); };
   const startPractice = ()=>{ const s = chapter==='All'?questions:questions.filter(q=>q.chapter===chapter); setActiveSet(s); resetRun(); stopTimer(); setPage('quiz'); };
-  const startTest = ()=>{ const pool = chapter==='All'?questions:questions.filter(q=>q.chapter===chapter);
-                          const n = Math.max(1, Math.min(parseInt(testCount||1,10), pool.length));
-                          const s = pickN(pool, n); setActiveSet(s); resetRun(); startTimer(timeForN(n)); setPage('quiz'); };
+
+  const startTest = ()=>{ 
+    const pool = chapter==='All'?questions:questions.filter(q=>q.chapter===chapter);
+    const requestedN = Math.max(1, parseInt(testCount || 1, 10));
+    const n = Math.max(1, Math.min(requestedN, pool.length));   // clamp to available
+    const s = pickN(pool, n);
+    setActiveSet(s); resetRun(); startTimer(timeForN(n)); setPage('quiz'); 
+  };
 
   const markSkipIfNeeded = (i)=>{ if(!answers[i] && !marked[i]) setSkipped(p=>({...p,[i]:true})); };
 
-  /* ---- save to history on result ---- */
+  /* ---- persist to history on result ---- */
   useEffect(() => {
     if (page !== 'result' || !total) return;
     const entry = {
@@ -151,14 +163,14 @@ const App = () => {
       timestamp: new Date().toISOString(),
       mode, chapter, total, score,
       percent: total ? Math.round((score/total)*100) : 0,
-      durationSec: mode==='test' ? timeForN(total) : null, // FIXED: matches rule
+      durationSec: mode==='test' ? timeForN(total) : null, // consistent with rule
       answers: Array.from({length: total}, (_,i)=>answers[i] ?? null),
       questions: activeSet.map(q=>({chapter:q.chapter, question:q.question, options:q.options, answer:q.answer, source:q.source ?? null}))
     };
     const h = store.get(); h.unshift(entry); store.set(h.slice(0,50));
   }, [page, total, score, answers, activeSet, mode, chapter]);
 
-  /* ----------------- PAGES ----------------- */
+  /* ----------------- RENDER ----------------- */
   if (loading) {
     return (<>
       <TopBar page={page} mode={mode} timeLeft={remaining} onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
@@ -175,8 +187,10 @@ const App = () => {
   /* ---- HOME ---- */
   if (page==='home') {
     const filteredCount = chapter==='All'?questions.length:questions.filter(q=>q.chapter===chapter).length;
-    const effectiveN = Math.max(1, Math.min(parseInt(testCount||1,10), filteredCount || 1));
-    const est = timeForN(effectiveN); // FIXED: 1.2 min per Q
+    const requestedN = Math.max(1, parseInt(testCount || 1, 10));
+    const effectiveN = Math.min(requestedN, filteredCount || 1);
+    const est = timeForN(effectiveN);
+
     return (
       <>
         <TopBar page={page} mode={mode} timeLeft={remaining}
@@ -210,12 +224,27 @@ const App = () => {
                 <div className="mt-4 grid md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm">No. of Questions</label>
-                    <input type="number" min="1" value={testCount} onChange={e=>setTestCount(e.target.value)}
-                           className="w-full p-2 border rounded-lg bg-white/60 backdrop-blur" />
-                    <p className="text-xs text-gray-700 mt-1">Available: {filteredCount}</p>
+                    <input
+                      type="number"
+                      min="1"
+                      max={filteredCount}
+                      value={testCount}
+                      onChange={e=>setTestCount(e.target.value)}
+                      className="w-full p-2 border rounded-lg bg-white/60 backdrop-blur"
+                    />
+                    <p className="text-xs text-gray-700 mt-1">
+                      Available: {filteredCount}
+                      {requestedN > filteredCount && (
+                        <span className="ml-2 text-rose-600 font-medium">
+                          (Requested {requestedN}, using {effectiveN})
+                        </span>
+                      )}
+                    </p>
                   </div>
                   <div className="flex items-end">
-                    <div className="p-2 border rounded bg-white/60 backdrop-blur text-sm">Estimated Time : {fmt(est)}</div>
+                    <div className="p-2 border rounded bg-white/60 backdrop-blur text-sm">
+                      Estimated Time : {fmt(est)}
+                    </div>
                   </div>
                 </div>
               )}
@@ -224,7 +253,11 @@ const App = () => {
                 {mode==='practice' ? (
                   <button onClick={()=>{ const s = chapter==='All'?questions:questions.filter(q=>q.chapter===chapter); setActiveSet(s); setCurrent(0); setAnswers({}); setMarked({}); setSkipped({}); stopTimer(); setPage('quiz'); }} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Start Practice</button>
                 ) : (
-                  <button onClick={()=>{ const pool = chapter==='All'?questions:questions.filter(q=>q.chapter===chapter); const n = Math.max(1, Math.min(parseInt(testCount||1,10), pool.length)); const s = pickN(pool, n); setActiveSet(s); setCurrent(0); setAnswers({}); setMarked({}); setSkipped({}); startTimer(timeForN(n)); setPage('quiz'); }} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Start Test</button>
+                  <button onClick={()=>{ const pool = chapter==='All'?questions:questions.filter(q=>q.chapter===chapter);
+                                          const req = Math.max(1, parseInt(testCount||1,10));
+                                          const n = Math.max(1, Math.min(req, pool.length));
+                                          const s = pickN(pool, n);
+                                          setActiveSet(s); setCurrent(0); setAnswers({}); setMarked({}); setSkipped({}); startTimer(timeForN(n)); setPage('quiz'); }} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Start Test</button>
                 )}
                 <button onClick={()=>setPage('history')} className={glassBtn()}>Review Past Results</button>
                 <button onClick={()=>setPage('analytics')} className={glassBtn()}>Analytics</button>
@@ -406,7 +439,7 @@ const App = () => {
     );
   }
 
-  /* ---- HISTORY ---- */
+  /* ---- HISTORY (no hooks here) ---- */
   if (page==='history') {
     const h = store.get();
     const sorted = [...h].sort((a,b)=>{
@@ -467,7 +500,7 @@ const App = () => {
     );
   }
 
-  /* ---- ANALYTICS ---- */
+  /* ---- ANALYTICS (simple) ---- */
   if (page==='analytics') {
     const hist = store.get();
     const agg = {};
