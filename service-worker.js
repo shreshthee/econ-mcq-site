@@ -1,5 +1,5 @@
 /* EconoLearn - Service Worker */
-const CACHE_VERSION = 'v5'; // 🔁 bump this to force an update
+const CACHE_VERSION = 'v6'; // 🔁 bump this to force an update
 const CACHE_NAME = `econolearn-cache-${CACHE_VERSION}`;
 
 const APP_SHELL = [
