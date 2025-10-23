@@ -1,101 +1,130 @@
-const { useState, useEffect } = React;
+const { useEffect, useState } = React;
 
-function App() {
-  const [mode, setMode] = useState("practice");
-  const [chapter, setChapter] = useState("All");
-  const [numQuestions, setNumQuestions] = useState(10);
+/** HH:MM:SS from minutes (float) */
+function minutesToHMS(mins) {
+  const total = Math.round(mins * 60);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${pad(h)}:${pad(m)}:${pad(s)}`;
+}
+
+function HomeCard() {
+  const [chapter, setChapter] = useState('All');
+  const [mode, setMode] = useState('practice');
   const [available, setAvailable] = useState(42);
-  const [estimated, setEstimated] = useState("00:00");
+  const [num, setNum] = useState(10);
+  const [eta, setEta] = useState('00:00:00');
 
-  // Auto-update estimated time (1.2 min per question)
+  // timer = N × 1.2 minutes
   useEffect(() => {
-    const totalMinutes = numQuestions * 1.2;
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = Math.floor(totalMinutes % 60);
-    const seconds = Math.round((totalMinutes * 60) % 60);
-    setEstimated(`${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`);
-  }, [numQuestions]);
+    const totalMinutes = Number(num || 0) * 1.2;
+    setEta(minutesToHMS(totalMinutes));
+  }, [num]);
 
+  // UI (glass card exactly like before)
   return (
-    <div className="min-h-screen flex flex-col items-center justify-start pt-12 bg-gradient-to-br from-pink-50 to-teal-50">
-      <h1 className="text-3xl font-semibold text-gray-800 mb-4">
-        EconoLearn – CUET PG Economics
-      </h1>
+    <section className="relative">
+      <div className="mx-auto max-w-5xl px-4">
+        <div className="mt-10 sm:mt-14 bg-rose-100/55 backdrop-blur-xl border border-white/70 rounded-3xl shadow-soft">
+          <div className="p-6 sm:p-8">
+            <h2 className="text-2xl sm:text-[28px] font-semibold text-gray-900">
+              EconoLearn – MCQ Practice for CUET PG Economics
+            </h2>
+            <p className="text-gray-700 mt-2">
+              Practice chapter-wise Economics PYQs with instant feedback.
+            </p>
 
-      <div className="bg-pink-100/80 backdrop-blur-lg p-6 rounded-2xl shadow-lg w-full max-w-3xl">
-        <h2 className="text-2xl font-bold mb-2">
-          EconoLearn – MCQ Practice for CUET PG Economics
-        </h2>
-        <p className="text-gray-700 mb-4">
-          Practice chapter-wise Economics PYQs with instant feedback.
-        </p>
+            {/* Chapter Filter */}
+            <div className="mt-6">
+              <label className="block text-sm font-semibold text-gray-800 mb-2">Chapter Filter</label>
+              <div className="relative z-50">
+                <select
+                  value={chapter}
+                  onChange={(e) => setChapter(e.target.value)}
+                  className="w-full appearance-none rounded-xl border border-white/70 bg-white/80 backdrop-blur px-3 py-2 pr-10
+                             shadow-soft focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-teal-400"
+                >
+                  <option>All</option>
+                  <option>Theory of Consumer Behaviour</option>
+                  <option>Theory of Demand & Elasticity</option>
+                  <option>Theory of Production & Cost</option>
+                  <option>Market Structures</option>
+                </select>
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">▾</span>
+              </div>
+            </div>
 
-        {/* Chapter Filter */}
-        <label className="block text-sm font-medium mb-2">Chapter Filter</label>
-        <div className="relative mb-4 z-50">
-          <select
-            value={chapter}
-            onChange={(e) => setChapter(e.target.value)}
-            className="block w-full appearance-none bg-white border border-gray-300 text-gray-800 py-2 px-3 pr-8 rounded-md focus:ring-2 focus:ring-teal-400 focus:border-teal-400 transition-all duration-200"
-          >
-            <option value="All">All</option>
-            <option value="Theory of Consumer Behaviour">Theory of Consumer Behaviour</option>
-            <option value="Theory of Demand & Elasticity">Theory of Demand & Elasticity</option>
-            <option value="Theory of Production & Cost">Theory of Production & Cost</option>
-            <option value="Market Structures">Market Structures</option>
-          </select>
-          <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-500">
-            ▼
+            {/* Mode */}
+            <div className="mt-6">
+              <span className="block text-sm font-semibold text-gray-800 mb-2">Mode</span>
+              <div className="flex items-center gap-6">
+                <label className="inline-flex items-center gap-2">
+                  <input type="radio" name="mode" checked={mode === 'practice'} onChange={() => setMode('practice')} />
+                  <span>Practice</span>
+                </label>
+                <label className="inline-flex items-center gap-2">
+                  <input type="radio" name="mode" checked={mode === 'test'} onChange={() => setMode('test')} />
+                  <span>Test</span>
+                </label>
+              </div>
+            </div>
+
+            {/* No. of Questions + ETA */}
+            <div className="mt-6 grid sm:grid-cols-[1fr_auto] items-end gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-800 mb-1">No. of Questions</label>
+                <input
+                  type="number"
+                  min="1"
+                  max={available}
+                  value={num}
+                  onChange={(e) => setNum(e.target.value)}
+                  className="w-full rounded-xl border border-white/70 bg-white/80 backdrop-blur px-3 py-2 shadow-soft
+                             focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-teal-400"
+                />
+                <p className="text-sm text-gray-600 mt-1">Available: {available}</p>
+              </div>
+              <div className="sm:mb-1 text-sm text-gray-700">
+                Estimated Time: <span className="font-semibold">{eta}</span>
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div className="mt-6 flex flex-wrap gap-3">
+              <button
+                className="rounded-xl bg-teal-600 text-white px-5 py-2 shadow-soft hover:bg-teal-700 transition"
+                onClick={() => alert(`${mode === 'practice' ? 'Practice' : 'Test'} starting for ${num} questions`)}
+              >
+                {mode === 'practice' ? 'Start Practice' : 'Start Test'}
+              </button>
+              <button
+                className="rounded-xl border border-white/70 bg-white/80 backdrop-blur px-5 py-2 shadow-soft hover:bg-white transition"
+                onClick={() => alert('Review Past Results (to be wired)')}
+              >
+                Review Past Results
+              </button>
+              <button
+                className="rounded-xl border border-white/70 bg-white/80 backdrop-blur px-5 py-2 shadow-soft hover:bg-white transition"
+                onClick={() => alert('Analytics (to be wired)')}
+              >
+                Analytics
+              </button>
+            </div>
           </div>
-        </div>
-
-        {/* Mode */}
-        <div className="flex items-center mb-4 space-x-6">
-          <span className="font-medium">Mode</span>
-          <label className="flex items-center space-x-1">
-            <input type="radio" checked={mode === "practice"} onChange={() => setMode("practice")} />
-            <span>Practice</span>
-          </label>
-          <label className="flex items-center space-x-1">
-            <input type="radio" checked={mode === "test"} onChange={() => setMode("test")} />
-            <span>Test</span>
-          </label>
-        </div>
-
-        {/* No. of Questions */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 mb-4">
-          <div className="flex-1">
-            <label className="block text-sm font-medium mb-1">No. of Questions</label>
-            <input
-              type="number"
-              min="1"
-              max={available}
-              value={numQuestions}
-              onChange={(e) => setNumQuestions(Number(e.target.value))}
-              className="w-full border border-gray-300 rounded-md py-2 px-3 focus:ring-2 focus:ring-teal-400 focus:border-teal-400"
-            />
-            <p className="text-sm text-gray-600 mt-1">Available: {available}</p>
-          </div>
-          <div className="mt-2 sm:mt-6 text-sm text-gray-700">
-            Estimated Time: <b>{estimated}</b>
-          </div>
-        </div>
-
-        {/* Buttons */}
-        <div className="flex flex-wrap gap-3">
-          <button className="bg-teal-600 text-white py-2 px-4 rounded-md shadow-md hover:bg-teal-700 transition">
-            {mode === "practice" ? "Start Practice" : "Start Test"}
-          </button>
-          <button className="bg-white border border-gray-300 text-gray-800 py-2 px-4 rounded-md shadow-sm hover:bg-gray-100 transition">
-            Review Past Results
-          </button>
-          <button className="bg-white border border-gray-300 text-gray-800 py-2 px-4 rounded-md shadow-sm hover:bg-gray-100 transition">
-            Analytics
-          </button>
         </div>
       </div>
+    </section>
+  );
+}
+
+function App() {
+  return (
+    <div className="py-6 sm:py-8">
+      <HomeCard />
     </div>
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
