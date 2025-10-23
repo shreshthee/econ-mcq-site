@@ -1,4 +1,4 @@
-/* ===================== EconoLearn - main.jsx (UI tuned, FIXED) ===================== */
+/* ===================== EconoLearn - main.jsx (UI tuned, HOOKS FIXED) ===================== */
 const { useEffect, useMemo, useRef, useState } = React;
 
 /* ----------------- LocalStorage helpers ----------------- */
@@ -67,7 +67,7 @@ const Confetti = ({ on }) => {
   return null;
 };
 
-/* ----------------- TopBar (bigger, 2-tone title) ----------------- */
+/* ----------------- TopBar ----------------- */
 const TopBar = ({ onHome, onHistory, onAnalytics, page, mode, timeLeft }) => (
   <header className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b">
     <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -197,11 +197,23 @@ const App = () => {
       .finally(()=> setLoading(false));
   }, []);
 
-  /* ---- derived ---- */
+  /* ---- derived (ALL hooks here, NOT inside branches) ---- */
   const total = activeSet.length;
-  const attemptedGlobal = useMemo(()=>Object.keys(answers).filter(k=>answers[k]!=null).length,[answers]);
-  const unattemptedGlobal = Math.max(0,total-attemptedGlobal);
-  const score = useMemo(()=>activeSet.reduce((s,q,i)=>s+(answers[i]===q.answer?1:0),0),[answers,activeSet]);
+
+  // How many answered
+  const attemptedCount = useMemo(
+    () => Object.keys(answers).filter(k => answers[k] != null).length,
+    [answers]
+  );
+
+  // Unattempted derived from totals
+  const unattemptedCount = Math.max(0, total - attemptedCount);
+
+  // Score
+  const score = useMemo(
+    () => activeSet.reduce((s, q, i) => s + (answers[i] === q.answer ? 1 : 0), 0),
+    [answers, activeSet]
+  );
 
   /* ---- timer ---- */
   const stopTimer = ()=>{ if (timer.current){ clearInterval(timer.current); timer.current=null; } };
@@ -212,33 +224,19 @@ const App = () => {
   /* ---- navigation helpers ---- */
   const resetRun = ()=>{ setCurrent(0); setAnswers({}); setMarked({}); setSkipped({}); };
 
-  // PATCH #1: Guard before navigating (Practice)
-  const startPractice = () => {
-    const pool = chapter === 'All' ? questions : questions.filter(q => q.chapter === chapter);
-    if (!pool.length) {
-      alert('No questions are available for this chapter yet.');
-      return;
-    }
-    setActiveSet(pool);
-    resetRun();
-    stopTimer();
-    setPage('quiz');
+  const startPractice = ()=>{ 
+    const pool = chapter==='All' ? questions : questions.filter(q => q.chapter === chapter);
+    if (!pool.length) { alert('No questions are available for this chapter yet.'); return; }
+    setActiveSet(pool); resetRun(); stopTimer(); setPage('quiz'); 
   };
 
-  // PATCH #1: Guard before navigating (Test)
-  const startTest = () => { 
-    const pool = chapter === 'All' ? questions : questions.filter(q => q.chapter === chapter);
-    if (!pool.length) {
-      alert('No questions are available for this chapter yet.');
-      return;
-    }
+  const startTest = ()=>{ 
+    const pool = chapter==='All' ? questions : questions.filter(q => q.chapter === chapter);
+    if (!pool.length) { alert('No questions are available for this chapter yet.'); return; }
     const requestedN = Math.max(1, parseInt(testCount || 1, 10));
     const n = Math.max(1, Math.min(requestedN, pool.length));   // clamp to available
     const s = pickN(pool, n);
-    setActiveSet(s); 
-    resetRun(); 
-    startTimer(timeForN(n)); 
-    setPage('quiz'); 
+    setActiveSet(s); resetRun(); startTimer(timeForN(n)); setPage('quiz'); 
   };
 
   /* ---- persist to history on result ---- */
@@ -288,7 +286,6 @@ const App = () => {
             <div className={glassCard}>
               <div className="pointer-events-none absolute -top-16 -left-16 w-72 h-72 bg-white/20 rounded-full blur-3xl"></div>
 
-              {/* Big title inside card */}
               <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-gray-900">
                 EconoLearn <span className="font-semibold text-gray-500">— MCQ Practice for CUET PG Economics</span>
               </h2>
@@ -297,11 +294,7 @@ const App = () => {
               <div className="mt-6 grid md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm">Chapter Filter</label>
-                  <FancySelect
-                    value={chapter}
-                    onChange={setChapter}
-                    options={chapterList}
-                  />
+                  <FancySelect value={chapter} onChange={setChapter} options={chapterList} />
                 </div>
                 <div>
                   <label className="text-sm">Mode</label>
@@ -338,7 +331,6 @@ const App = () => {
                     </p>
                   </div>
 
-                  {/* Time limit on the same line */}
                   <div className="md:ml-auto">
                     <label className="text-sm block">Time limit</label>
                     <div className="p-2 border rounded bg-white/60 backdrop-blur text-sm w-40 md:w-44 text-center">
@@ -350,19 +342,9 @@ const App = () => {
 
               <div className="mt-6 flex gap-3 flex-wrap">
                 {mode==='practice' ? (
-                  <button
-                    onClick={startPractice}
-                    className={solidBtn("bg-teal-600 hover:bg-teal-700")}
-                  >
-                    Start Practice
-                  </button>
+                  <button onClick={startPractice} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Start Practice</button>
                 ) : (
-                  <button
-                    onClick={startTest}
-                    className={solidBtn("bg-teal-600 hover:bg-teal-700")}
-                  >
-                    Start Test
-                  </button>
+                  <button onClick={startTest} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Start Test</button>
                 )}
                 <button onClick={()=>setPage('history')} className={glassBtn()}>Review Past Results</button>
                 <button onClick={()=>setPage('analytics')} className={glassBtn()}>Analytics</button>
@@ -378,28 +360,19 @@ const App = () => {
   if (page==='quiz') {
     const q = activeSet[current];
 
-    // PATCH #2: Friendly fallback if no question at this index (prevents blank page)
+    // Friendly fallback instead of returning null (prevents "blank screen")
     if (!q) {
       return (
         <>
-          <TopBar
-            page={page}
-            mode={mode}
-            timeLeft={remaining}
-            onHome={() => { stopTimer(); setPage('home'); }}
-            onHistory={() => setPage('history')}
-            onAnalytics={() => setPage('analytics')}
-          />
+          <TopBar page={page} mode={mode} timeLeft={remaining}
+                  onHome={()=>{ stopTimer(); setPage('home'); }} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
           <main className="max-w-4xl mx-auto px-4 py-12 text-center">
             <div className="rounded-2xl p-8 bg-white/70 backdrop-blur border">
               <h2 className="text-xl font-semibold">No questions to display</h2>
               <p className="text-gray-600 mt-2">
-                This can happen if the selected chapter has no questions or the data could not be read properly.
+                This can happen if the selected chapter has no questions or the JSON is malformed.
               </p>
-              <button
-                onClick={() => setPage('home')}
-                className="mt-6 px-5 py-2 rounded-lg border border-white/40 bg-white/30 hover:bg-white/40 text-gray-800"
-              >
+              <button onClick={()=>setPage('home')} className="mt-6 px-5 py-2 rounded-lg border border-white/40 bg-white/30 hover:bg-white/40 text-gray-800">
                 Go back Home
               </button>
             </div>
@@ -407,9 +380,6 @@ const App = () => {
         </>
       );
     }
-
-    const attempted = useMemo(()=>Object.keys(answers).filter(k=>answers[k]!=null).length,[answers]);
-    const unattempted = Math.max(0, activeSet.length - attempted);
 
     return (
       <>
@@ -419,8 +389,8 @@ const App = () => {
           <div className="grid lg:grid-cols-[1fr,280px] gap-6">
             <div>
               <div className="mb-3 flex items-center justify-between gap-4">
-                <div className="text-sm text-gray-600">Question {current+1} of {activeSet.length}</div>
-                <div className="w-1/2"><Progress i={current} total={activeSet.length}/></div>
+                <div className="text-sm text-gray-600">Question {current+1} of {total}</div>
+                <div className="w-1/2"><Progress i={current} total={total}/></div>
               </div>
 
               <section className={cardWrap}>
@@ -465,10 +435,10 @@ const App = () => {
                     <div className="flex-1" />
                     <div className="flex items-center gap-4">
                       <div className="text-[13px] text-gray-700 text-right leading-tight">
-                        <div>Attempted: <b>{attempted}</b></div>
-                        <div className="mt-1">Unattempted: <b>{unattempted}</b></div>
+                        <div>Attempted: <b>{attemptedCount}</b></div>
+                        <div className="mt-1">Unattempted: <b>{unattemptedCount}</b></div>
                       </div>
-                      {current < activeSet.length-1 ? (
+                      {current < total-1 ? (
                         <button onClick={()=>{ if(!answers[current] && !marked[current]) setSkipped(p=>({...p,[current]:true})); setCurrent(c=>c+1); }} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Next</button>
                       ) : (
                         <button onClick={()=>{ if(!answers[current] && !marked[current]) setSkipped(p=>({...p,[current]:true})); stopTimer(); setPage('result'); }} className={solidBtn("bg-green-600 hover:bg-green-700")}>Submit</button>
@@ -479,7 +449,6 @@ const App = () => {
               </section>
             </div>
 
-            {/* Palette */}
             <aside className="lg:sticky lg:top-[72px]">
               <div className="rounded-2xl p-4 bg-white/70 backdrop-blur border border-white/60 shadow">
                 <div className="flex items-center justify-between mb-2">
