@@ -3,17 +3,20 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+
   <title>EconoLearn – MCQ Practice for CUET PG Economics</title>
 
   <!-- PWA colors -->
-  <meta name="theme-color" content="#f9fafb" />
+  <meta name="theme-color" content="#0ea5a4" />
 
   <!-- Manifest & icons -->
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png" />
-  <link rel="shortcut icon" href="favicon.ico" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
 
   <!-- Tailwind (CDN) -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -28,9 +31,6 @@
     }
   </script>
 
-  <!-- Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
-
   <!-- Small global styles -->
   <style>
     html, body { height: 100%; }
@@ -42,26 +42,44 @@
   <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-  <!-- jsPDF (optional, for exports you may add later) -->
-  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 </head>
 
 <body>
-  <div class="min-h-screen">
-    <div id="root"></div>
-  </div>
+  <!-- App Root -->
+  <div id="root" class="min-h-screen"></div>
 
-  <!-- Register service worker for PWA/offline -->
+  <!-- Register Service Worker -->
   <script>
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./service-worker.js').catch(() => {});
+      window.addEventListener('load', async () => {
+        try {
+          const reg = await navigator.serviceWorker.register('./service-worker.js');
+          // Optional: listen for updates and reload when a new SW takes control
+          if (reg.waiting) {
+            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+          }
+          reg.addEventListener('updatefound', () => {
+            const sw = reg.installing;
+            if (!sw) return;
+            sw.addEventListener('statechange', () => {
+              if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+                // New content available; reload next navigation or prompt user.
+                console.log('New version installed. Hard refresh if needed.');
+              }
+            });
+          });
+        } catch (e) {
+          console.log('SW registration failed:', e);
+        }
+      });
+      // Ensure new SW takes over
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        console.log('Service worker changed; new content active.');
       });
     }
   </script>
 
-  <!-- Your app (Babel in-browser; data-presets MUST be 'react' only) -->
-  <script type="text/babel" data-presets="react" src="./main.jsx"></script>
+  <!-- Your app code (cache-busted) -->
+  <script type="text/babel" data-presets="react" src="./main.jsx?v=2025-01"></script>
 </body>
 </html>
