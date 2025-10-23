@@ -1,4 +1,4 @@
-/* ===================== EconoLearn - main.jsx (UI tuned) ===================== */
+/* ===================== EconoLearn - main.jsx (UI tuned, FIXED) ===================== */
 const { useEffect, useMemo, useRef, useState } = React;
 
 /* ----------------- LocalStorage helpers ----------------- */
@@ -119,8 +119,6 @@ function FancySelect({ value, onChange, options }) {
     return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); }
   }, []);
 
-  const currentLabel = value;
-
   const toggle = () => {
     if (!btnRef.current) { setOpen(v=>!v); return; }
     const r = btnRef.current.getBoundingClientRect();
@@ -140,7 +138,7 @@ function FancySelect({ value, onChange, options }) {
         aria-haspopup="listbox"
         aria-expanded={open}
       >
-        {currentLabel}
+        {value}
         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500">▾</span>
       </button>
 
@@ -222,6 +220,21 @@ const App = () => {
     const s = pickN(pool, n);
     setActiveSet(s); resetRun(); startTimer(timeForN(n)); setPage('quiz'); 
   };
+
+  /* ---- persist to history on result ---- */
+  useEffect(() => {
+    if (page !== 'result' || !total) return;
+    const entry = {
+      id: 'attempt_' + Date.now(),
+      timestamp: new Date().toISOString(),
+      mode, chapter, total, score,
+      percent: total ? Math.round((score/total)*100) : 0,
+      durationSec: mode==='test' ? timeForN(total) : null, // consistent with rule
+      answers: Array.from({length: total}, (_,i)=>answers[i] ?? null),
+      questions: activeSet.map(q=>({chapter:q.chapter, question:q.question, options:q.options, answer:q.answer, source:q.source ?? null}))
+    };
+    const h = store.get(); h.unshift(entry); store.set(h.slice(0,50));
+  }, [page, total, score, answers, activeSet, mode, chapter]);
 
   /* ----------------- RENDER ----------------- */
   if (loading) {
@@ -342,20 +355,11 @@ const App = () => {
   }
 
   /* ---- QUIZ ---- */
-  const activeSet = React.useMemo(()=> (window.__activeSet__ || []), []); // (placeholder TS fix)
   if (page==='quiz') {
     const q = activeSet[current]; if (!q) return null;
 
-    const status = (i) => {
-      const answered = answers[i]!=null; const isMarked = !!marked[i]; const isSkipped = !!skipped[i];
-      if (answered && isMarked) return 'attempted_marked';
-      if (!answered && isMarked) return 'marked_only';
-      if (!answered && isSkipped) return 'skipped';
-      if (answered) return 'attempted';
-      return 'unattempted';
-    };
-
-    const attemptedCount = attempted;
+    const attempted = useMemo(()=>Object.keys(answers).filter(k=>answers[k]!=null).length,[answers]);
+    const unattempted = Math.max(0, activeSet.length - attempted);
 
     return (
       <>
@@ -365,8 +369,8 @@ const App = () => {
           <div className="grid lg:grid-cols-[1fr,280px] gap-6">
             <div>
               <div className="mb-3 flex items-center justify-between gap-4">
-                <div className="text-sm text-gray-600">Question {current+1} of {total}</div>
-                <div className="w-1/2"><Progress i={current} total={total}/></div>
+                <div className="text-sm text-gray-600">Question {current+1} of {activeSet.length}</div>
+                <div className="w-1/2"><Progress i={current} total={activeSet.length}/></div>
               </div>
 
               <section className={cardWrap}>
@@ -411,10 +415,10 @@ const App = () => {
                     <div className="flex-1" />
                     <div className="flex items-center gap-4">
                       <div className="text-[13px] text-gray-700 text-right leading-tight">
-                        <div>Attempted: <b>{attemptedCount}</b></div>
+                        <div>Attempted: <b>{attempted}</b></div>
                         <div className="mt-1">Unattempted: <b>{unattempted}</b></div>
                       </div>
-                      {current < total-1 ? (
+                      {current < activeSet.length-1 ? (
                         <button onClick={()=>{ if(!answers[current] && !marked[current]) setSkipped(p=>({...p,[current]:true})); setCurrent(c=>c+1); }} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Next</button>
                       ) : (
                         <button onClick={()=>{ if(!answers[current] && !marked[current]) setSkipped(p=>({...p,[current]:true})); stopTimer(); setPage('result'); }} className={solidBtn("bg-green-600 hover:bg-green-700")}>Submit</button>
