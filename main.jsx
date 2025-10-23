@@ -1,4 +1,4 @@
-/* ===================== EconoLearn - main.jsx (with FancySelect) ===================== */
+/* ===================== EconoLearn - main.jsx (UI tuned) ===================== */
 const { useEffect, useMemo, useRef, useState } = React;
 
 /* ----------------- LocalStorage helpers ----------------- */
@@ -9,9 +9,9 @@ const store = {
 };
 
 /* ----------------- Time helpers (rule: 1.2 min per Q) ----------------- */
-const TIME_PER_Q_MIN = 1.2;                                  // 1.2 minutes per question
-const timeForN  = (n) => Math.round(n * TIME_PER_Q_MIN * 60);// seconds
-const fmt = (s) => {                                         // HH:MM:SS (or MM:SS if < 1 hour)
+const TIME_PER_Q_MIN = 1.2;                              // 1.2 minutes per question
+const timeForN = (n) => Math.round(n * TIME_PER_Q_MIN * 60); // seconds
+const fmt = (s) => {                                    // HH:MM:SS (or MM:SS if < 1 hour)
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
   const sec = s % 60;
@@ -22,7 +22,7 @@ const fmt = (s) => {                                         // HH:MM:SS (or MM:
 
 /* ----------------- Small utils ----------------- */
 const shuffle = (arr) => { const a = arr.slice(); for (let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]];} return a; };
-const pickN   = (arr, n) => shuffle(arr).slice(0, n);
+const pickN = (arr, n) => shuffle(arr).slice(0, n);
 
 /* ----------------- Background (Ganesh left, responsive) ----------------- */
 const Background = () => (
@@ -67,124 +67,14 @@ const Confetti = ({ on }) => {
   return null;
 };
 
-/* ----------------- FancySelect (glassy, portal, keyboard) ----------------- */
-const FancySelect = ({ value, onChange, options }) => {
-  const btnRef = useRef(null);
-  const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState({left:0, top:0, width:0});
-  const [hover, setHover] = useState(-1); // keyboard highlight
-
-  const idxByValue = options.findIndex(o => o === value);
-
-  const place = () => {
-    const r = btnRef.current?.getBoundingClientRect();
-    if (!r) return;
-    setPos({ left: r.left + window.scrollX, top: r.bottom + window.scrollY + 8, width: r.width });
-  };
-
-  useEffect(() => {
-    if (!open) return;
-    place();
-    const onScroll = () => place();
-    const onResize = () => place();
-    const onClickAway = (e) => {
-      if (!btnRef.current) return;
-      if (!btnRef.current.contains(e.target)) setOpen(false);
-    };
-    window.addEventListener('scroll', onScroll, true);
-    window.addEventListener('resize', onResize);
-    document.addEventListener('click', onClickAway);
-    return () => {
-      window.removeEventListener('scroll', onScroll, true);
-      window.removeEventListener('resize', onResize);
-      document.removeEventListener('click', onClickAway);
-    };
-  }, [open]);
-
-  const onKey = (e) => {
-    if (!open) return;
-    if (e.key === 'Escape') setOpen(false);
-    if (e.key === 'ArrowDown') { e.preventDefault(); setHover(h => Math.min(options.length-1, (h<0?idxByValue:h)+1)); }
-    if (e.key === 'ArrowUp')   { e.preventDefault(); setHover(h => Math.max(0, (h<0?idxByValue:h)-1)); }
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      const target = hover>=0 ? options[hover] : value;
-      onChange(target);
-      setOpen(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!open) return;
-    const onKeyDown = (e) => onKey(e);
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [open, hover, value, options]);
-
-  const triggerClass =
-    "w-full p-2 pl-3 pr-9 border rounded-lg bg-white/60 backdrop-blur text-left relative " +
-    "hover:bg-white/75 transition select-none";
-
-  return (
-    <>
-      {/* Trigger */}
-      <button
-        ref={btnRef}
-        type="button"
-        className={triggerClass}
-        onClick={() => { setOpen(o=>!o); setHover(-1); }}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-      >
-        <span className="block truncate">{value}</span>
-        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500">▾</span>
-      </button>
-
-      {/* Portal dropdown */}
-      {open && ReactDOM.createPortal(
-        <div
-          className="z-[9999] fixed"
-          style={{ left: pos.left, top: pos.top, width: pos.width }}
-        >
-          <div className="rounded-2xl border border-white/50 bg-white/80 backdrop-blur-xl shadow-2xl overflow-hidden
-                          animate-[fadeIn_.15s_ease-out_both]">
-            <ul role="listbox" className="max-h-[52vh] overflow-auto p-1">
-              {options.map((opt, i) => {
-                const active = opt === value;
-                const hl = i === hover;
-                return (
-                  <li
-                    key={opt}
-                    role="option"
-                    aria-selected={active}
-                    onMouseEnter={() => setHover(i)}
-                    onMouseLeave={() => setHover(-1)}
-                    onClick={() => { onChange(opt); setOpen(false); }}
-                    className={`px-3 py-2 rounded-lg cursor-pointer select-none flex items-center gap-2
-                      transition transform-gpu
-                      ${active ? "bg-teal-500/90 text-white"
-                               : hl ? "bg-rose-100/80 text-gray-900"
-                                    : "text-gray-800 hover:bg-rose-50"}`}
-                  >
-                    {active ? <span className="text-white">●</span> : <span className="text-gray-400">○</span>}
-                    <span className="truncate">{opt}</span>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        </div>,
-        document.body
-      )}
-    </>
-  );
-};
-
-/* ----------------- TopBar ----------------- */
+/* ----------------- TopBar (bigger, 2-tone title) ----------------- */
 const TopBar = ({ onHome, onHistory, onAnalytics, page, mode, timeLeft }) => (
   <header className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b">
     <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-      <h1 className="text-base md:text-lg font-semibold">EconoLearn – CUET PG Economics</h1>
+      <h1 className="text-xl md:text-2xl font-semibold">
+        <span className="font-extrabold text-gray-900">EconoLearn</span>
+        <span className="text-gray-500 font-semibold"> — CUET PG Economics</span>
+      </h1>
       <div className="flex items-center gap-2 md:gap-3 text-sm">
         {page==='home' && (
           <>
@@ -210,6 +100,73 @@ const Progress = ({ i, total }) => {
     </div>
   );
 };
+
+/* ----------------- FancySelect (auto flips up/down) ----------------- */
+function FancySelect({ value, onChange, options }) {
+  const [open, setOpen] = useState(false);
+  const [placement, setPlacement] = useState('bottom'); // 'bottom' | 'top'
+  const btnRef = useRef(null);
+  const listRef = useRef(null);
+
+  useEffect(() => {
+    function onDoc(e) {
+      if (!btnRef.current || !listRef.current) return;
+      if (!btnRef.current.contains(e.target) && !listRef.current.contains(e.target)) setOpen(false);
+    }
+    function onKey(e) { if (e.key === 'Escape') setOpen(false); }
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); }
+  }, []);
+
+  const currentLabel = value;
+
+  const toggle = () => {
+    if (!btnRef.current) { setOpen(v=>!v); return; }
+    const r = btnRef.current.getBoundingClientRect();
+    const below = window.innerHeight - r.bottom;
+    const menuH = 220; // approx
+    setPlacement(below >= menuH ? 'bottom' : 'top');
+    setOpen(v=>!v);
+  };
+
+  return (
+    <div className="relative">
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={toggle}
+        className="w-full text-left p-2 pr-9 border rounded-lg bg-white/60 backdrop-blur hover:bg-white/70 transition"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        {currentLabel}
+        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500">▾</span>
+      </button>
+
+      {open && (
+        <ul
+          ref={listRef}
+          className={`absolute left-0 right-0 max-h-60 overflow-auto rounded-xl border bg-white/95 backdrop-blur shadow-xl
+                      ${placement==='bottom' ? 'mt-2 top-full' : 'mb-2 bottom-full'} z-20`}
+          role="listbox"
+        >
+          {options.map(opt => (
+            <li
+              key={opt}
+              role="option"
+              aria-selected={opt === value}
+              onClick={() => { onChange(opt); setOpen(false); }}
+              className={`px-3 py-2 cursor-pointer hover:bg-teal-50 ${opt===value?'bg-teal-100 text-teal-700 font-medium':''}`}
+            >
+              {opt}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 /* ====================================================================== */
 const App = () => {
@@ -266,23 +223,6 @@ const App = () => {
     setActiveSet(s); resetRun(); startTimer(timeForN(n)); setPage('quiz'); 
   };
 
-  const markSkipIfNeeded = (i)=>{ if(!answers[i] && !marked[i]) setSkipped(p=>({...p,[i]:true})); };
-
-  /* ---- persist to history on result ---- */
-  useEffect(() => {
-    if (page !== 'result' || !total) return;
-    const entry = {
-      id: 'attempt_' + Date.now(),
-      timestamp: new Date().toISOString(),
-      mode, chapter, total, score,
-      percent: total ? Math.round((score/total)*100) : 0,
-      durationSec: mode==='test' ? timeForN(total) : null, // consistent with rule
-      answers: Array.from({length: total}, (_,i)=>answers[i] ?? null),
-      questions: activeSet.map(q=>({chapter:q.chapter, question:q.question, options:q.options, answer:q.answer, source:q.source ?? null}))
-    };
-    const h = store.get(); h.unshift(entry); store.set(h.slice(0,50));
-  }, [page, total, score, answers, activeSet, mode, chapter]);
-
   /* ----------------- RENDER ----------------- */
   if (loading) {
     return (<>
@@ -299,7 +239,7 @@ const App = () => {
 
   /* ---- HOME ---- */
   if (page==='home') {
-    const chapters = ['All', ...new Set(questions.map(q=>q.chapter).filter(Boolean))];
+    const chapterList = ['All',...new Set(questions.map(q=>q.chapter).filter(Boolean))];
     const filteredCount = chapter==='All'?questions.length:questions.filter(q=>q.chapter===chapter).length;
     const requestedN = Math.max(1, parseInt(testCount || 1, 10));
     const effectiveN = Math.min(requestedN, filteredCount || 1);
@@ -314,27 +254,37 @@ const App = () => {
           <section className={cardWrap}>
             <div className={glassCard}>
               <div className="pointer-events-none absolute -top-16 -left-16 w-72 h-72 bg-white/20 rounded-full blur-3xl"></div>
-              <h2 className="text-3xl font-semibold">EconoLearn – MCQ Practice for CUET PG Economics</h2>
+
+              {/* Big title inside card */}
+              <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-gray-900">
+                EconoLearn <span className="font-semibold text-gray-500">— MCQ Practice for CUET PG Economics</span>
+              </h2>
               <p className="text-gray-700 mt-2">Practice chapter-wise Economics PYQs with instant feedback.</p>
 
               <div className="mt-6 grid md:grid-cols-2 gap-4">
-                <div className="relative">
+                <div>
                   <label className="text-sm">Chapter Filter</label>
-                  {/* FancySelect replaces native select */}
-                  <FancySelect value={chapter} onChange={setChapter} options={chapters} />
+                  <FancySelect
+                    value={chapter}
+                    onChange={setChapter}
+                    options={chapterList}
+                  />
                 </div>
-
                 <div>
                   <label className="text-sm">Mode</label>
-                  <div className="flex gap-4">
-                    <label className="flex items-center gap-2"><input type="radio" checked={mode==='practice'} onChange={()=>setMode('practice')} /> Practice</label>
-                    <label className="flex items-center gap-2"><input type="radio" checked={mode==='test'} onChange={()=>setMode('test')} /> Test</label>
+                  <div className="flex gap-4 mt-2">
+                    <label className="flex items-center gap-2">
+                      <input type="radio" checked={mode==='practice'} onChange={()=>setMode('practice')} /> Practice
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input type="radio" checked={mode==='test'} onChange={()=>setMode('test')} /> Test
+                    </label>
                   </div>
                 </div>
               </div>
 
               {mode==='test' && (
-                <div className="mt-4 grid md:grid-cols-2 gap-4">
+                <div className="mt-5 flex flex-col md:flex-row md:items-end gap-4">
                   <div>
                     <label className="text-sm">No. of Questions</label>
                     <input
@@ -343,7 +293,7 @@ const App = () => {
                       max={filteredCount}
                       value={testCount}
                       onChange={e=>setTestCount(e.target.value)}
-                      className="w-full p-2 border rounded-lg bg-white/60 backdrop-blur"
+                      className="w-40 md:w-48 p-2 border rounded-lg bg-white/60 backdrop-blur"
                     />
                     <p className="text-xs text-gray-700 mt-1">
                       Available: {filteredCount}
@@ -354,9 +304,12 @@ const App = () => {
                       )}
                     </p>
                   </div>
-                  <div className="flex items-end">
-                    <div className="p-2 border rounded bg-white/60 backdrop-blur text-sm">
-                      Estimated Time : {fmt(est)}
+
+                  {/* Time limit on the same line */}
+                  <div className="md:ml-auto">
+                    <label className="text-sm block">Time limit</label>
+                    <div className="p-2 border rounded bg-white/60 backdrop-blur text-sm w-40 md:w-44 text-center">
+                      {fmt(est)}
                     </div>
                   </div>
                 </div>
@@ -364,9 +317,19 @@ const App = () => {
 
               <div className="mt-6 flex gap-3 flex-wrap">
                 {mode==='practice' ? (
-                  <button onClick={startPractice} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Start Practice</button>
+                  <button
+                    onClick={()=>{ const s = chapter==='All'?questions:questions.filter(q=>q.chapter===chapter); setActiveSet(s); setCurrent(0); setAnswers({}); setMarked({}); setSkipped({}); stopTimer(); setPage('quiz'); }}
+                    className={solidBtn("bg-teal-600 hover:bg-teal-700")}
+                  >
+                    Start Practice
+                  </button>
                 ) : (
-                  <button onClick={startTest} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Start Test</button>
+                  <button
+                    onClick={startTest}
+                    className={solidBtn("bg-teal-600 hover:bg-teal-700")}
+                  >
+                    Start Test
+                  </button>
                 )}
                 <button onClick={()=>setPage('history')} className={glassBtn()}>Review Past Results</button>
                 <button onClick={()=>setPage('analytics')} className={glassBtn()}>Analytics</button>
@@ -379,6 +342,7 @@ const App = () => {
   }
 
   /* ---- QUIZ ---- */
+  const activeSet = React.useMemo(()=> (window.__activeSet__ || []), []); // (placeholder TS fix)
   if (page==='quiz') {
     const q = activeSet[current]; if (!q) return null;
 
@@ -440,8 +404,7 @@ const App = () => {
                       <button onClick={()=>setMarked(p=>({...p,[current]:!p[current]}))}
                               className={glassBtn(answers[current]? (marked[current]?" bg-blue-500/80 text-white border-blue-300 hover:bg-blue-600/80":"")
                                                       : (marked[current]?" bg-violet-500/80 text-white border-violet-300 hover:bg-violet-600/80":""))}>
-                        {marked[current] ? 'Unmark Review' : 'Mark for Review'
-                        }
+                        {marked[current] ? 'Unmark Review' : 'Mark for Review'}
                       </button>
                     </div>
 
@@ -471,14 +434,8 @@ const App = () => {
                 </div>
                 <div className="grid grid-cols-5 gap-2">
                   {activeSet.map((_,i)=>{
-                    const s = (() => {
-                      const answered = answers[i]!=null; const isMarked = !!marked[i]; const isSkipped = !!skipped[i];
-                      if (answered && isMarked) return 'attempted_marked';
-                      if (!answered && isMarked) return 'marked_only';
-                      if (!answered && isSkipped) return 'skipped';
-                      if (answered) return 'attempted';
-                      return 'unattempted';
-                    })();
+                    const answered = answers[i]!=null; const isMarked = !!marked[i]; const isSkipped = !!skipped[i];
+                    const s = answered && isMarked ? 'attempted_marked' : !answered && isMarked ? 'marked_only' : !answered && isSkipped ? 'skipped' : answered ? 'attempted' : 'unattempted';
                     const base="w-8 h-8 rounded-md flex items-center justify-center text-sm border shadow-sm transition-all duration-200 transform hover:scale-105 hover:shadow-md";
                     const ring=(i===current)?" ring-2 ring-teal-500":"";
                     const color = s==='attempted_marked' ? "bg-blue-500 text-white border-blue-600 hover:bg-blue-600"
