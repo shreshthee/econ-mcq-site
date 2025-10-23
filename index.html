@@ -1,51 +1,67 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>EconoLearn — CUET PG Economics</title>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EconoLearn – MCQ Practice for CUET PG Economics</title>
 
-    <!-- Tailwind -->
-    <script src="https://cdn.tailwindcss.com"></script>
+  <!-- PWA colors -->
+  <meta name="theme-color" content="#f9fafb" />
 
-    <!-- React + ReactDOM + Babel -->
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Manifest & icons -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
 
-    <!-- Manifest for PWA -->
-    <link rel="manifest" href="manifest.webmanifest" />
-    <meta name="theme-color" content="#f43f5e" />
-
-    <!-- Favicon -->
-    <link rel="icon" href="./icon512.png" />
-
-    <style>
-      body {
-        background: linear-gradient(to bottom right, #fff5f7, #f0fdfa);
-        min-height: 100vh;
-        margin: 0;
-        font-family: 'Inter', system-ui, sans-serif;
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { poppins: ['Poppins', 'sans-serif'] },
+          colors: { primary: '#0ea5a4' }
+        }
       }
-    </style>
-  </head>
+    }
+  </script>
 
-  <body>
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Small global styles -->
+  <style>
+    html, body { height: 100%; }
+    body { font-family: 'Poppins', sans-serif; background: #fff; color: #1f2937; }
+    @keyframes slide { from {opacity:0; transform: translateY(6px);} to {opacity:1; transform: translateY(0);} }
+  </style>
+
+  <!-- React UMD + Babel (only 'react' preset) -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- jsPDF (optional, for future export) -->
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+</head>
+
+<body>
+  <!-- App root -->
+  <div class="min-h-screen">
     <div id="root"></div>
+  </div>
 
-    <!-- Main App -->
-    <script type="text/babel" src="main.jsx"></script>
+  <!-- Register service worker for PWA/offline -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js').catch(() => {});
+      });
+    }
+  </script>
 
-    <!-- Service Worker Registration -->
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker
-            .register('service-worker.js')
-            .then(() => console.log('✅ Service Worker registered'))
-            .catch((err) => console.log('SW registration failed:', err));
-        });
-      }
-    </script>
-  </body>
+  <!-- Your App -->
+  <script type="text/babel" data-presets="react" src="./main.jsx"></script>
+</body>
 </html>
