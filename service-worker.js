@@ -1,47 +1,36 @@
-// ===================== EconoLearn Service Worker =====================
-// Caches core files for offline access
-
-const CACHE_NAME = 'econolearn-cache-v2';
-const CORE_ASSETS = [
-  '/',
-  '/index.html',
-  '/main.jsx',
-  '/questions.json',
-  '/ganesh.png',
-  '/icon192.png',
-  '/icon512.png',
-  '/manifest.webmanifest',
+// EconoLearn - Service Worker (static cache for GitHub Pages)
+const CACHE_NAME = 'econolearn-cache-v1';
+const urlsToCache = [
+  './',
+  './index.html',
+  './main.jsx',
+  './questions.json',
+  './ganesh.png',
+  './favicon-32.png',
+  './favicon-16.png',
+  './apple-touch-icon.png',
+  './icon-192.png',
+  './icon-512.png'
 ];
 
-self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log('🔹 Caching core assets...');
-      return cache.addAll(CORE_ASSETS);
-    })
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(urlsToCache))
   );
 });
 
-self.addEventListener('activate', (e) => {
-  e.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request).then((response) =>
+      response || fetch(event.request)
     )
   );
 });
 
-self.addEventListener('fetch', (e) => {
-  e.respondWith(
-    caches.match(e.request).then((resp) => {
-      return (
-        resp ||
-        fetch(e.request).then((r) => {
-          return caches.open(CACHE_NAME).then((cache) => {
-            cache.put(e.request, r.clone());
-            return r;
-          });
-        })
-      );
-    })
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((names) =>
+      Promise.all(names.filter((n) => n !== CACHE_NAME).map((n) => caches.delete(n)))
+    )
   );
 });
