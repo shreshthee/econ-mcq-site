@@ -1,19 +1,19 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>EconoLearn – CUET PG Economics</title>
 
-  <!-- PWA / Icons -->
+  <!-- PWA & Icons -->
   <meta name="theme-color" content="#f9fafb" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png" />
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
 
-  <!-- Fonts / Tailwind -->
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <!-- Tailwind + Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -26,38 +26,39 @@
     };
   </script>
 
-  <!-- React + Babel (IMPORTANT: react preset only) -->
+  <!-- React + Babel -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
   <style>
-    html, body { height: 100%; }
-    body { font-family: Poppins, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji"; }
-    @keyframes fadeIn { from { opacity: 0; transform: scale(.98) } to { opacity: 1; transform: scale(1) } }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: 'Poppins', sans-serif;
+      background-color: #fef2f2;
+      color: #1f2937;
+    }
   </style>
 </head>
-<body class="bg-rose-50 text-gray-800">
+
+<body class="text-gray-800">
   <div id="root" class="min-h-screen"></div>
+
   <noscript>
-    <div style="padding:16px;color:#b91c1c">This site requires JavaScript.</div>
+    <div style="padding: 16px; color: #b91c1c">
+      This site requires JavaScript to function correctly.
+    </div>
   </noscript>
 
-  <!-- One-time SW cleanup to avoid serving stale/broken cache -->
+  <!-- Clear old service workers -->
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(regs => {
-        regs.forEach(reg => reg.unregister());
-      }).catch(()=>{});
-      // Also clear caches named by older SWs (optional)
-      if (window.caches && caches.keys) {
-        caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
-      }
+      navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
+      if (window.caches && caches.keys) caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
     }
   </script>
 
-  <!-- Your app -->
-  <!-- IMPORTANT: keep only 'react' preset -->
-  <script type="text/babel" data-presets="react" src="main.jsx?v=<?=Date.now()?>"></script>
+  <!-- Load main React app -->
+  <script type="text/babel" data-presets="react" src="main.jsx"></script>
 </body>
 </html>
