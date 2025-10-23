@@ -199,8 +199,8 @@ const App = () => {
 
   /* ---- derived ---- */
   const total = activeSet.length;
-  const attempted = useMemo(()=>Object.keys(answers).filter(k=>answers[k]!=null).length,[answers]);
-  const unattempted = Math.max(0,total-attempted);
+  const attemptedGlobal = useMemo(()=>Object.keys(answers).filter(k=>answers[k]!=null).length,[answers]);
+  const unattemptedGlobal = Math.max(0,total-attemptedGlobal);
   const score = useMemo(()=>activeSet.reduce((s,q,i)=>s+(answers[i]===q.answer?1:0),0),[answers,activeSet]);
 
   /* ---- timer ---- */
@@ -211,14 +211,34 @@ const App = () => {
 
   /* ---- navigation helpers ---- */
   const resetRun = ()=>{ setCurrent(0); setAnswers({}); setMarked({}); setSkipped({}); };
-  const startPractice = ()=>{ const s = chapter==='All'?questions:questions.filter(q=>q.chapter===chapter); setActiveSet(s); resetRun(); stopTimer(); setPage('quiz'); };
 
-  const startTest = ()=>{ 
-    const pool = chapter==='All'?questions:questions.filter(q=>q.chapter===chapter);
+  // PATCH #1: Guard before navigating (Practice)
+  const startPractice = () => {
+    const pool = chapter === 'All' ? questions : questions.filter(q => q.chapter === chapter);
+    if (!pool.length) {
+      alert('No questions are available for this chapter yet.');
+      return;
+    }
+    setActiveSet(pool);
+    resetRun();
+    stopTimer();
+    setPage('quiz');
+  };
+
+  // PATCH #1: Guard before navigating (Test)
+  const startTest = () => { 
+    const pool = chapter === 'All' ? questions : questions.filter(q => q.chapter === chapter);
+    if (!pool.length) {
+      alert('No questions are available for this chapter yet.');
+      return;
+    }
     const requestedN = Math.max(1, parseInt(testCount || 1, 10));
     const n = Math.max(1, Math.min(requestedN, pool.length));   // clamp to available
     const s = pickN(pool, n);
-    setActiveSet(s); resetRun(); startTimer(timeForN(n)); setPage('quiz'); 
+    setActiveSet(s); 
+    resetRun(); 
+    startTimer(timeForN(n)); 
+    setPage('quiz'); 
   };
 
   /* ---- persist to history on result ---- */
@@ -331,7 +351,7 @@ const App = () => {
               <div className="mt-6 flex gap-3 flex-wrap">
                 {mode==='practice' ? (
                   <button
-                    onClick={()=>{ const s = chapter==='All'?questions:questions.filter(q=>q.chapter===chapter); setActiveSet(s); setCurrent(0); setAnswers({}); setMarked({}); setSkipped({}); stopTimer(); setPage('quiz'); }}
+                    onClick={startPractice}
                     className={solidBtn("bg-teal-600 hover:bg-teal-700")}
                   >
                     Start Practice
@@ -356,7 +376,37 @@ const App = () => {
 
   /* ---- QUIZ ---- */
   if (page==='quiz') {
-    const q = activeSet[current]; if (!q) return null;
+    const q = activeSet[current];
+
+    // PATCH #2: Friendly fallback if no question at this index (prevents blank page)
+    if (!q) {
+      return (
+        <>
+          <TopBar
+            page={page}
+            mode={mode}
+            timeLeft={remaining}
+            onHome={() => { stopTimer(); setPage('home'); }}
+            onHistory={() => setPage('history')}
+            onAnalytics={() => setPage('analytics')}
+          />
+          <main className="max-w-4xl mx-auto px-4 py-12 text-center">
+            <div className="rounded-2xl p-8 bg-white/70 backdrop-blur border">
+              <h2 className="text-xl font-semibold">No questions to display</h2>
+              <p className="text-gray-600 mt-2">
+                This can happen if the selected chapter has no questions or the data could not be read properly.
+              </p>
+              <button
+                onClick={() => setPage('home')}
+                className="mt-6 px-5 py-2 rounded-lg border border-white/40 bg-white/30 hover:bg-white/40 text-gray-800"
+              >
+                Go back Home
+              </button>
+            </div>
+          </main>
+        </>
+      );
+    }
 
     const attempted = useMemo(()=>Object.keys(answers).filter(k=>answers[k]!=null).length,[answers]);
     const unattempted = Math.max(0, activeSet.length - attempted);
