@@ -170,6 +170,9 @@ const App = () => {
   const [remainingSec, setRemainingSec] = useState(0);
   const timerRef = useRef(null);
 
+  // guard to avoid saving same result twice
+  const savedAttemptRef = useRef(false);
+
   /* load questions */
   useEffect(() => {
     fetch('questions.json?v=' + Date.now())
@@ -185,6 +188,7 @@ const App = () => {
   const total = activeSet.length;
   const attempted = useMemo(() => Object.keys(answers).filter(k => answers[k] != null).length, [answers]);
   const unattempted = Math.max(0, total - attempted);
+  const score = useMemo(()=>activeSet.reduce((s,q,i)=>s+(answers[i]===q.answer?1:0),0),[answers,activeSet]);
 
   const markSkippedIfUnanswered = (i) => { if (!answers[i] && !marked[i]) setSkipped(p => ({...p, [i]: true})); };
   const handleSelect = (opt) => {
@@ -195,7 +199,7 @@ const App = () => {
   const prev = () => { markSkippedIfUnanswered(current); if (current>0) setCurrent(c=>c-1); };
   const next = () => { markSkippedIfUnanswered(current); if (current<total-1) setCurrent(c=>c+1); };
   const goto = (i) => { markSkippedIfUnanswered(current); setCurrent(i); };
-  const goHome = () => { setPage('home'); setCurrent(0); setAnswers({}); setMarked({}); setSkipped({}); stopTimer(); };
+  const goHome = () => { setPage('home'); setCurrent(0); setAnswers({}); setMarked({}); setSkipped({}); stopTimer(); savedAttemptRef.current=false; };
 
   const startTimer = (sec) => {
     stopTimer();
@@ -214,6 +218,7 @@ const App = () => {
     setActiveSet(f);
     setPage('quiz'); setCurrent(0); setAnswers({}); setMarked({}); setSkipped({});
     stopTimer();
+    savedAttemptRef.current=false;
   };
   const startTest = () => {
     const f = chapter==='All'?questions:questions.filter(q=>q.chapter===chapter);
@@ -222,10 +227,45 @@ const App = () => {
     setActiveSet(s);
     setPage('quiz'); setCurrent(0); setAnswers({}); setMarked({}); setSkipped({});
     startTimer(timeForQuestionsSec(n));
+    savedAttemptRef.current=false;
   };
 
-  const score = useMemo(()=>activeSet.reduce((s,q,i)=>s+(answers[i]===q.answer?1:0),0),[answers,activeSet]);
   const submitNow = () => { stopTimer(); setPage('result'); };
+
+  /* ---------- SAVE RESULT TO LOCALSTORAGE WHEN RESULT PAGE OPENS ---------- */
+  useEffect(() => {
+    if (page !== 'result' || savedAttemptRef.current) return;
+
+    const percent = total ? Math.round((score/total)*100) : 0;
+
+    // normalize answers to an array aligned with question order
+    const answersArray = Array.from({length: total}, (_, i) => answers[i] ?? null);
+
+    const attempt = {
+      id: 'attempt_' + Date.now(),
+      timestamp: new Date().toISOString(),
+      mode,
+      chapter,
+      total,
+      score,
+      percent,
+      durationSec: mode === 'test' ? timeForQuestionsSec(total) : null,
+      answers: answersArray,
+      questions: activeSet.map(q => ({
+        chapter: q.chapter,
+        question: q.question,
+        options: q.options,
+        answer: q.answer,
+        source: q.source ?? null
+      }))
+    };
+
+    const history = ls.get();
+    history.unshift(attempt);
+    ls.set(history.slice(0, 50)); // keep latest 50
+    savedAttemptRef.current = true;
+    // console.log('Saved attempt:', attempt);
+  }, [page, mode, chapter, total, score, answers, activeSet]);
 
   /* ----------------- LOADING/ERROR ----------------- */
   if (loading) {
