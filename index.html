@@ -5,54 +5,59 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>EconoLearn – CUET PG Economics</title>
 
-  <!-- Icons (optional, include only if files exist in repo root) -->
-  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+  <!-- PWA / Icons -->
+  <meta name="theme-color" content="#f9fafb" />
+  <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png" />
-  <link rel="manifest" href="manifest.webmanifest" />
-  <meta name="theme-color" content="#fce7f3" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
 
-  <!-- Fonts & Tailwind -->
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet" />
+  <!-- Fonts / Tailwind -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    /* Tailwind fine-tuning: add Poppins as a utility class `font-poppins` */
     tailwind.config = {
       theme: {
         extend: {
-          fontFamily: { poppins: ['Poppins', 'ui-sans-serif', 'system-ui'] },
-          colors: { brand: { DEFAULT: '#0ea5a4' } }, /* teal-500-ish */
+          fontFamily: { poppins: ['Poppins', 'sans-serif'] },
+          colors: { primary: '#0ea5a4' }
         }
       }
-    }
+    };
   </script>
 
-  <!-- Basic page background (App may override/augment) -->
-  <style>
-    html, body { height: 100%; }
-    body {
-      background: radial-gradient(1200px 600px at 10% 60%, rgba(255, 192, 203, .25), transparent 60%),
-                  linear-gradient(180deg, #fff 0%, #fff7fb 100%);
-    }
-  </style>
-</head>
-
-<body class="min-h-screen font-poppins text-gray-800 antialiased">
-  <noscript>
-    <div style="padding:1rem; background:#fee2e2; color:#7f1d1d; text-align:center;">
-      JavaScript is required to run this site.
-    </div>
-  </noscript>
-
-  <!-- App mounts here -->
-  <div id="root" class="min-h-screen"></div>
-
-  <!-- React + Babel (must come before main.jsx) -->
+  <!-- React + Babel (IMPORTANT: react preset only) -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-  <!-- IMPORTANT: Only 'react' preset. Do NOT use "env". -->
-  <script type="text/babel" data-presets="react" src="main.jsx"></script>
+  <style>
+    html, body { height: 100%; }
+    body { font-family: Poppins, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji"; }
+    @keyframes fadeIn { from { opacity: 0; transform: scale(.98) } to { opacity: 1; transform: scale(1) } }
+  </style>
+</head>
+<body class="bg-rose-50 text-gray-800">
+  <div id="root" class="min-h-screen"></div>
+  <noscript>
+    <div style="padding:16px;color:#b91c1c">This site requires JavaScript.</div>
+  </noscript>
+
+  <!-- One-time SW cleanup to avoid serving stale/broken cache -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(regs => {
+        regs.forEach(reg => reg.unregister());
+      }).catch(()=>{});
+      // Also clear caches named by older SWs (optional)
+      if (window.caches && caches.keys) {
+        caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+      }
+    }
+  </script>
+
+  <!-- Your app -->
+  <!-- IMPORTANT: keep only 'react' preset -->
+  <script type="text/babel" data-presets="react" src="main.jsx?v=<?=Date.now()?>"></script>
 </body>
 </html>
