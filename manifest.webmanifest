@@ -1,80 +1,36 @@
-const { useEffect, useState } = React;
-
-// ErrorBoundary: if React crashes, you SEE it (no blank page).
-class ErrorBoundary extends React.Component {
-  constructor(p){ super(p); this.state = { hasError:false, err:null, info:null }; }
-  static getDerivedStateFromError(err){ return { hasError:true, err }; }
-  componentDidCatch(err, info){ console.error("React crash:", err, info); this.setState({ info }); }
-  render(){
-    if (this.state.hasError){
-      return (
-        <div className="max-w-3xl mx-auto mt-6 p-4 rounded-lg border bg-red-50 border-red-200">
-          <h2 className="font-semibold text-red-700">React crashed</h2>
-          <pre className="text-xs text-red-800 mt-2">{String(this.state.err)}</pre>
-          {this.state.info && <pre className="text-xs text-gray-700 mt-2">{this.state.info.componentStack}</pre>}
-        </div>
-      );
+{
+  "name": "EconoLearn – CUET PG Economics",
+  "short_name": "EconoLearn",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#f9fafb",
+  "description": "Chapter-wise MCQ Practice for CUET PG Economics with timer and analytics",
+  "icons": [
+    {
+      "src": "favicon-16.png",
+      "sizes": "16x16",
+      "type": "image/png"
+    },
+    {
+      "src": "favicon-32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
     }
-    return this.props.children;
-  }
+  ]
 }
-
-function DiagnosticApp(){
-  const [status, setStatus] = useState("Booting…");
-  const [qStatus, setQStatus] = useState("Checking questions.json…");
-  const [count, setCount] = useState(null);
-
-  useEffect(() => {
-    setStatus("React mounted ✓");
-    // 1) verify main.jsx is loading (you’re reading this = yes)
-    // 2) verify questions.json path + JSON validity
-    (async () => {
-      try {
-        const url = "questions.json?v=" + Date.now();
-        const r = await fetch(url);
-        if (!r.ok) {
-          setQStatus(`questions.json HTTP ${r.status} — make sure the file exists at repo root and is named exactly "questions.json"`);
-          return;
-        }
-        const data = await r.json(); // will throw if JSON invalid
-        const arr = Array.isArray(data) ? data : (Array.isArray(data?.questions) ? data.questions : []);
-        setCount(arr.length);
-        setQStatus(`Loaded ✓ (${arr.length} questions)`);
-      } catch (e) {
-        setQStatus("Failed to parse questions.json — is it valid JSON? " + e.message);
-        console.error(e);
-      }
-    })();
-  }, []);
-
-  return (
-    <main className="max-w-3xl mx-auto mt-8 space-y-4">
-      <h1 className="text-2xl font-semibold">EconoLearn – Diagnostic</h1>
-
-      <div className="p-4 rounded-lg border bg-white">
-        <div className="font-medium">App Status</div>
-        <div className="text-sm text-gray-700 mt-1">{status}</div>
-      </div>
-
-      <div className="p-4 rounded-lg border bg-white">
-        <div className="font-medium">questions.json</div>
-        <div className="text-sm text-gray-700 mt-1">{qStatus}</div>
-        {count!=null && <div className="text-sm mt-1">Count: <b>{count}</b></div>}
-        <p className="text-xs text-gray-500 mt-2">File must be at <code>/questions.json</code> (same folder as index.html).</p>
-      </div>
-
-      <div className="p-4 rounded-lg border bg-white">
-        <div className="font-medium">Next</div>
-        <ol className="list-decimal ml-5 text-sm text-gray-700 mt-1 space-y-1">
-          <li>Open DevTools → <b>Network</b>, reload. Confirm <code>main.jsx</code> is <b>200</b> (not 404).</li>
-          <li>Confirm <code>questions.json</code> is <b>200</b> and JSON parses (see status above).</li>
-          <li>Open DevTools → <b>Console</b>. If you see any red error, copy the exact message here.</li>
-        </ol>
-      </div>
-    </main>
-  );
-}
-
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <ErrorBoundary><DiagnosticApp/></ErrorBoundary>
-);
