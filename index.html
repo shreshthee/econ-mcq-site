@@ -1,85 +1,51 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EconoLearn — CUET PG Economics</title>
 
-  <title>EconoLearn – MCQ Practice for CUET PG Economics</title>
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- PWA colors -->
-  <meta name="theme-color" content="#0ea5a4" />
+    <!-- React + ReactDOM + Babel -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-  <!-- Manifest & icons -->
-  <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
-  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png" />
-  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+    <!-- Manifest for PWA -->
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="theme-color" content="#f43f5e" />
 
-  <!-- Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Favicon -->
+    <link rel="icon" href="./icon512.png" />
 
-  <!-- Tailwind (CDN) -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: { poppins: ['Poppins', 'sans-serif'] },
-          colors: { primary: '#0ea5a4' }
-        }
+    <style>
+      body {
+        background: linear-gradient(to bottom right, #fff5f7, #f0fdfa);
+        min-height: 100vh;
+        margin: 0;
+        font-family: 'Inter', system-ui, sans-serif;
       }
-    }
-  </script>
+    </style>
+  </head>
 
-  <!-- Small global styles -->
-  <style>
-    html, body { height: 100%; }
-    body { font-family: 'Poppins', sans-serif; background: #fff; color: #1f2937; }
-    @keyframes slide { from {opacity:0; transform: translateY(6px);} to {opacity:1; transform: translateY(0);} }
-  </style>
+  <body>
+    <div id="root"></div>
 
-  <!-- React UMD + Babel (only 'react' preset) -->
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-</head>
+    <!-- Main App -->
+    <script type="text/babel" src="main.jsx"></script>
 
-<body>
-  <!-- App Root -->
-  <div id="root" class="min-h-screen"></div>
-
-  <!-- Register Service Worker -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', async () => {
-        try {
-          const reg = await navigator.serviceWorker.register('./service-worker.js');
-          // Optional: listen for updates and reload when a new SW takes control
-          if (reg.waiting) {
-            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-          }
-          reg.addEventListener('updatefound', () => {
-            const sw = reg.installing;
-            if (!sw) return;
-            sw.addEventListener('statechange', () => {
-              if (sw.state === 'installed' && navigator.serviceWorker.controller) {
-                // New content available; reload next navigation or prompt user.
-                console.log('New version installed. Hard refresh if needed.');
-              }
-            });
-          });
-        } catch (e) {
-          console.log('SW registration failed:', e);
-        }
-      });
-      // Ensure new SW takes over
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        console.log('Service worker changed; new content active.');
-      });
-    }
-  </script>
-
-  <!-- Your app code (cache-busted) -->
-  <script type="text/babel" data-presets="react" src="./main.jsx?v=2025-01"></script>
-</body>
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker
+            .register('service-worker.js')
+            .then(() => console.log('✅ Service Worker registered'))
+            .catch((err) => console.log('SW registration failed:', err));
+        });
+      }
+    </script>
+  </body>
 </html>
