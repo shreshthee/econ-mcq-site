@@ -1,77 +1,52 @@
-const { useEffect, useMemo, useRef, useState } = React;
-
-/* ---------------- Local Storage Helpers ---------------- */
-const LS_KEY = "econ_mcq_history_v2";
-const store = {
-  get() { try { return JSON.parse(localStorage.getItem(LS_KEY)) ?? []; } catch { return []; } },
-  set(v) { try { localStorage.setItem(LS_KEY, JSON.stringify(v)); } catch {} }
-};
-
-/* ---------------- Timer Logic (1.2 min per Q) ---------------- */
-const TIME_PER_Q_MIN = 1.2;
-const timeForN = (n) => Math.round(n * TIME_PER_Q_MIN * 60);
-const fmt = (s) => {
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  return h > 0
-    ? `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`
-    : `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
-};
-
-/* ---------------- Styling Helpers ---------------- */
-const glassCard = "relative rounded-3xl p-6 bg-white/30 backdrop-blur-xl border border-white/40 overflow-visible";
-const cardWrap  = "relative rounded-3xl p-[1px] bg-gradient-to-br from-rose-200/70 via-red-200/60 to-rose-200/70 shadow-lg shadow-red-200/40";
-const glassBtn  = (extra="") => `px-4 py-2 rounded-lg border border-white/40 bg-white/30 hover:bg-white/40
-                                  text-gray-800 backdrop-blur-xl transition shadow-sm hover:shadow
-                                  transform-gpu hover:scale-[1.03] active:scale-[0.99] ${extra}`;
-const solidBtn  = (extra="") => `px-5 py-2 rounded-lg text-white shadow-md transform-gpu hover:scale-[1.03] active:scale-[0.99] ${extra}`;
-
-/* ---------------- Ganesh Background ---------------- */
-const Background = () => (
-  <>
-    <div className="pointer-events-none fixed left-0 top-1/2 -translate-y-1/2
-                    w-[45vmin] h-[60vmin] sm:w-[40vmin] sm:h-[55vmin]
-                    bg-[url('./ganesh.png')] bg-no-repeat bg-contain bg-left
-                    opacity-25 rounded-[999px]" />
-    <div className="fixed inset-0 -z-10 bg-rose-50/10" />
-  </>
-);
-
-/* ---------------- FancySelect (Portal-based) ---------------- */
+// --- FancySelect (Portal version, with proper inside-click handling) ---
 function FancySelect({ options = [], value, onChange, label = 'Select' }) {
   const [open, setOpen] = React.useState(false);
   const [activeIndex, setActiveIndex] = React.useState(Math.max(0, options.findIndex(o => o === value)));
   const btnRef = React.useRef(null);
+  const panelRef = React.useRef(null);
   const [pos, setPos] = React.useState({ left: 0, top: 0, width: 0 });
 
+  // keep activeIndex in sync if value changes externally
   React.useEffect(() => {
-    const close = (e) => {
-      if (!btnRef.current) return;
+    const idx = options.findIndex(o => o === value);
+    if (idx >= 0) setActiveIndex(idx);
+  }, [value, options]);
+
+  React.useEffect(() => {
+    const closeOnOutside = (e) => {
       if (!open) return;
-      if (!btnRef.current.contains(e.target)) setOpen(false);
+      const btn = btnRef.current;
+      const panel = panelRef.current;
+      const target = e.target;
+
+      // If click is on the button or inside the panel, do NOT close.
+      if ((btn && btn.contains(target)) || (panel && panel.contains(target))) return;
+
+      setOpen(false);
     };
+
     const reposition = () => {
       if (!btnRef.current) return;
       const r = btnRef.current.getBoundingClientRect();
       setPos({ left: r.left, top: r.bottom + 6, width: r.width });
     };
+
     if (open) {
       reposition();
       window.addEventListener('scroll', reposition, true);
       window.addEventListener('resize', reposition);
-      document.addEventListener('mousedown', close);
+      document.addEventListener('mousedown', closeOnOutside, true); // capture so it runs before React
     }
     return () => {
       window.removeEventListener('scroll', reposition, true);
       window.removeEventListener('resize', reposition);
-      document.removeEventListener('mousedown', close);
+      document.removeEventListener('mousedown', closeOnOutside, true);
     };
   }, [open]);
 
   const onKeyDown = (e) => {
     if (!open) {
-      if (['ArrowDown', 'Enter', ' '].includes(e.key)) { e.preventDefault(); setOpen(true); }
+      if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(true); }
       return;
     }
     if (e.key === 'Escape') setOpen(false);
@@ -80,8 +55,10 @@ function FancySelect({ options = [], value, onChange, label = 'Select' }) {
     else if (e.key === 'Enter')     { onChange?.(options[activeIndex]); setOpen(false); }
   };
 
+  // render dropdown in a portal; keep a ref to panel for inside-click checks
   const panel = open ? ReactDOM.createPortal(
     <div
+      ref={panelRef}
       role="listbox"
       style={{ position: 'fixed', left: pos.left, top: pos.top, width: pos.width, zIndex: 1000 }}
       className="rounded-2xl border border-white/50
@@ -97,6 +74,7 @@ function FancySelect({ options = [], value, onChange, label = 'Select' }) {
                 role="option"
                 aria-selected={selected}
                 onMouseEnter={() => setActiveIndex(idx)}
+                onMouseDown={(e) => e.preventDefault()} // prevent focus loss flicker
                 onClick={() => { onChange?.(opt); setOpen(false); }}
                 className={`px-4 py-3 rounded-xl cursor-pointer select-none transition
                             ${selected ? 'bg-teal-500/90 text-white'
@@ -135,97 +113,3 @@ function FancySelect({ options = [], value, onChange, label = 'Select' }) {
     </div>
   );
 }
-
-/* ---------------- TopBar ---------------- */
-const TopBar = ({ onHome, onHistory, onAnalytics }) => (
-  <header className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b">
-    <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-      <h1 className="text-base md:text-lg font-semibold">EconoLearn – CUET PG Economics</h1>
-      <div className="flex items-center gap-3 text-sm">
-        <button onClick={onHistory} className={glassBtn()}>Review Past Results</button>
-        <button onClick={onAnalytics} className={glassBtn()}>Analytics</button>
-      </div>
-    </div>
-  </header>
-);
-
-/* ---------------- App ---------------- */
-const App = () => {
-  const [page, setPage] = useState('home');
-  const [chapter, setChapter] = useState('All');
-  const [mode, setMode] = useState('practice');
-  const [questions, setQuestions] = useState([]);
-  const [testCount, setTestCount] = useState(10);
-
-  useEffect(() => {
-    fetch('questions.json?v=' + Date.now())
-      .then(r => r.json())
-      .then(d => Array.isArray(d) ? setQuestions(d) : setQuestions(d.questions || []))
-      .catch(()=>alert('Error loading questions.'));
-  }, []);
-
-  const filteredCount = chapter==='All'?questions.length:questions.filter(q=>q.chapter===chapter).length;
-  const est = timeForN(Math.min(testCount, filteredCount));
-
-  const chapterOptions = ['All', ...new Set(questions.map(q=>q.chapter).filter(Boolean))];
-
-  return (
-    <>
-      <TopBar onHome={()=>setPage('home')} onHistory={()=>alert('History Page')} onAnalytics={()=>alert('Analytics Page')} />
-      <Background/>
-      <main className="relative max-w-6xl mx-auto px-4 py-10">
-        <section className={cardWrap}>
-          <div className={glassCard}>
-            <h2 className="text-3xl font-semibold">EconoLearn – MCQ Practice for CUET PG Economics</h2>
-            <p className="text-gray-700 mt-2">Practice chapter-wise Economics PYQs with instant feedback.</p>
-
-            <div className="mt-6 grid md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm mb-1 block">Chapter Filter</label>
-                <FancySelect value={chapter} onChange={setChapter} options={chapterOptions} />
-              </div>
-              <div>
-                <label className="text-sm mb-1 block">Mode</label>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2"><input type="radio" checked={mode==='practice'} onChange={()=>setMode('practice')} /> Practice</label>
-                  <label className="flex items-center gap-2"><input type="radio" checked={mode==='test'} onChange={()=>setMode('test')} /> Test</label>
-                </div>
-              </div>
-            </div>
-
-            {mode==='test' && (
-              <div className="mt-4 grid md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm">No. of Questions</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max={filteredCount}
-                    value={testCount}
-                    onChange={e=>setTestCount(e.target.value)}
-                    className="w-full p-2 border rounded-lg bg-white/60 backdrop-blur"
-                  />
-                  <p className="text-xs text-gray-700 mt-1">Available: {filteredCount}</p>
-                </div>
-                <div className="flex items-end">
-                  <div className="p-2 border rounded bg-white/60 backdrop-blur text-sm">
-                    Estimated Time : {fmt(est)}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="mt-6 flex gap-3 flex-wrap">
-              <button className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Start {mode==='test'?'Test':'Practice'}</button>
-              <button className={glassBtn()}>Review Past Results</button>
-              <button className={glassBtn()}>Analytics</button>
-            </div>
-          </div>
-        </section>
-      </main>
-    </>
-  );
-};
-
-/* ---------------- Mount ---------------- */
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
