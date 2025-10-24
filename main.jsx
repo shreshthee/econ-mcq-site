@@ -1,13 +1,5 @@
-/* ===================== EconoLearn - main.jsx (SmartSelect + compact UI + analytics fix) ===================== */
-const { useEffect, useMemo, useRef, useState } = React;
-
-/* ----------------- Config ----------------- */
-const FORCE_CUSTOM_SELECT = false; // set true to force custom dropdown also on touch devices
-
-/* ----------------- Device helpers ----------------- */
-const isTouchDevice =
-  (typeof window !== 'undefined') &&
-  ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+/* ===================== EconoLearn - main.jsx (Final with History Quick Actions) ===================== */
+const { useEffect, useRef, useState } = React;
 
 /* ----------------- LocalStorage helpers ----------------- */
 const LS_KEY = "econ_mcq_history_v2";
@@ -17,9 +9,9 @@ const store = {
 };
 
 /* ----------------- Time helpers (rule: 1.2 min per Q) ----------------- */
-const TIME_PER_Q_MIN = 1.2;
+const TIME_PER_Q_MIN = 1.2;                              // 1.2 minutes per question
 const timeForN = (n) => Math.round(n * TIME_PER_Q_MIN * 60); // seconds
-const fmt = (s) => {
+const fmt = (s) => {                                    // HH:MM:SS (or MM:SS if < 1 hour)
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
   const sec = s % 60;
@@ -75,7 +67,7 @@ const Confetti = ({ on }) => {
   return null;
 };
 
-/* ----------------- TopBar ----------------- */
+/* ----------------- TopBar (bigger, 2-tone title) ----------------- */
 const TopBar = ({ onHome, onHistory, onAnalytics, page, mode, timeLeft }) => (
   <header className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b">
     <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -99,102 +91,6 @@ const TopBar = ({ onHome, onHistory, onAnalytics, page, mode, timeLeft }) => (
   </header>
 );
 
-/* ----------------- SmartSelect -----------------
-   • Touch devices → native <select> (perfect scroll)
-   • Desktop → portal dropdown outside the card (no clipping)
---------------------------------------------------*/
-function SmartSelect({ value, onChange, options }) {
-  const useNative = isTouchDevice && !FORCE_CUSTOM_SELECT;
-
-  // Native select path (touch)
-  if (useNative) {
-    return (
-      <select
-        value={value}
-        onChange={(e)=>onChange(e.target.value)}
-        className="w-full p-2 border rounded-lg bg-white/60 backdrop-blur hover:bg-white/70"
-      >
-        {options.map((opt)=>(
-          <option key={opt} value={opt}>{opt}</option>
-        ))}
-      </select>
-    );
-  }
-
-  // Desktop path (portal)
-  const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState({ top: 0, left: 0, width: 0, menuH: 260, placement: 'bottom' });
-  const btnRef = useRef(null);
-
-  const compute = () => {
-    if (!btnRef.current) return;
-    const r = btnRef.current.getBoundingClientRect();
-    const below = window.innerHeight - r.bottom;
-    const menuH = Math.min(320, Math.max(200, Math.floor(window.innerHeight * 0.6)));
-    const placement = (below >= menuH ? 'bottom' : 'top');
-    const top = placement === 'bottom' ? r.bottom + 6 : r.top - 6;
-    setPos({ top, left: r.left, width: r.width, menuH, placement });
-  };
-
-  useEffect(() => {
-    const close = (e) => {
-      if (!btnRef.current) return;
-      if (!btnRef.current.contains(e.target)) setOpen(false);
-    };
-    const recalc = () => open && compute();
-    document.addEventListener('mousedown', close);
-    window.addEventListener('resize', recalc);
-    window.addEventListener('scroll', recalc, true);
-    return () => {
-      document.removeEventListener('mousedown', close);
-      window.removeEventListener('resize', recalc);
-      window.removeEventListener('scroll', recalc, true);
-    };
-  }, [open]);
-
-  const menu = open ? ReactDOM.createPortal(
-    <ul
-      className="fixed z-[9999] bg-white shadow-xl rounded-xl border overflow-auto"
-      style={{
-        top: pos.placement === 'bottom' ? pos.top : (pos.top - pos.menuH),
-        left: pos.left,
-        width: pos.width,
-        maxHeight: pos.menuH
-      }}
-      role="listbox"
-    >
-      {options.map(opt => (
-        <li
-          key={opt}
-          role="option"
-          aria-selected={opt === value}
-          onClick={() => { onChange(opt); setOpen(false); }}
-          className={`px-3 py-2 cursor-pointer hover:bg-teal-50 ${opt===value?'bg-teal-100 text-teal-700 font-medium':''}`}
-        >
-          {opt}
-        </li>
-      ))}
-    </ul>
-    , document.body) : null;
-
-  return (
-    <div className="relative">
-      <button
-        ref={btnRef}
-        type="button"
-        onClick={() => { compute(); setOpen(v=>!v); }}
-        className="w-full text-left p-2 pr-9 border rounded-lg bg-white/60 backdrop-blur hover:bg-white/70 transition"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-      >
-        {value}
-        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500">▾</span>
-      </button>
-      {menu}
-    </div>
-  );
-}
-
 /* ----------------- Progress ----------------- */
 const Progress = ({ i, total }) => {
   const pct = total ? Math.round(((i+1)/total)*100) : 0;
@@ -204,6 +100,108 @@ const Progress = ({ i, total }) => {
     </div>
   );
 };
+
+/* ----------------- FancySelect with Portal (scroll + auto flip) ----------------- */
+function FancySelect({ value, onChange, options }) {
+  const [open, setOpen] = useState(false);
+  const [placement, setPlacement] = useState('bottom'); // 'bottom' | 'top'
+  const btnRef = useRef(null);
+  const portalRef = useRef(null);
+
+  useEffect(() => {
+    portalRef.current = document.createElement('div');
+    portalRef.current.style.position = 'fixed';
+    portalRef.current.style.zIndex = 9999;
+    document.body.appendChild(portalRef.current);
+
+    const onDoc = (e) => {
+      if (!btnRef.current) return;
+      if (!btnRef.current.contains(e.target) && !portalRef.current.contains(e.target)) setOpen(false);
+    };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+      if (portalRef.current) document.body.removeChild(portalRef.current);
+    };
+  }, []);
+
+  const toggle = () => {
+    if (!btnRef.current || !portalRef.current) { setOpen(v => !v); return; }
+    const r = btnRef.current.getBoundingClientRect();
+    const menuH = Math.min(48 * Math.min(options.length, 8) + 8, 280); // approx
+    const below = window.innerHeight - r.bottom;
+    setPlacement(below >= menuH ? 'bottom' : 'top');
+
+    // position portal
+    const top = placement === 'bottom' ? r.bottom + 6 : r.top - menuH - 6;
+    portalRef.current.style.left = `${r.left}px`;
+    portalRef.current.style.width = `${r.width}px`;
+    portalRef.current.style.top = `${Math.max(8, top)}px`;
+
+    setOpen(v => !v);
+  };
+
+  // keep portal tracking position while open (resize/scroll)
+  useEffect(() => {
+    if (!open || !btnRef.current || !portalRef.current) return;
+    const update = () => {
+      const r = btnRef.current.getBoundingClientRect();
+      const menuH = Math.min(48 * Math.min(options.length, 8) + 8, 280);
+      const below = window.innerHeight - r.bottom;
+      const place = below >= menuH ? 'bottom' : 'top';
+      setPlacement(place);
+      const top = place === 'bottom' ? r.bottom + 6 : r.top - menuH - 6;
+      portalRef.current.style.left = `${r.left}px`;
+      portalRef.current.style.width = `${r.width}px`;
+      portalRef.current.style.top = `${Math.max(8, top)}px`;
+    };
+    update();
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update, true);
+    return () => {
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update, true);
+    };
+  }, [open, options.length]);
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={toggle}
+        className="w-full text-left p-2 pr-9 border rounded-lg bg-white/60 backdrop-blur hover:bg-white/70 transition"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        {value}
+        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500">▾</span>
+      </button>
+
+      {open && portalRef.current && ReactDOM.createPortal(
+        <ul
+          className="max-h-56 overflow-auto rounded-xl border bg-white/95 backdrop-blur shadow-2xl"
+          role="listbox"
+        >
+          {options.map(opt => (
+            <li
+              key={opt}
+              role="option"
+              aria-selected={opt === value}
+              onClick={() => { onChange(opt); setOpen(false); }}
+              className={`px-3 py-2 cursor-pointer hover:bg-teal-50 ${opt===value?'bg-teal-100 text-teal-700 font-medium':''}`}
+            >
+              {opt}
+            </li>
+          ))}
+        </ul>, portalRef.current
+      )}
+    </>
+  );
+}
 
 /* ====================================================================== */
 const App = () => {
@@ -238,9 +236,7 @@ const App = () => {
 
   /* ---- derived ---- */
   const total = activeSet.length;
-  const attempted = useMemo(()=>Object.keys(answers).filter(k=>answers[k]!=null).length,[answers]);
-  const unattempted = Math.max(0,total-attempted);
-  const score = useMemo(()=>activeSet.reduce((s,q,i)=>s+(answers[i]===q.answer?1:0),0),[answers,activeSet]);
+  const score = activeSet.reduce((s,q,i)=>s+(answers[i]===q.answer?1:0),0);
 
   /* ---- timer ---- */
   const stopTimer = ()=>{ if (timer.current){ clearInterval(timer.current); timer.current=null; } };
@@ -268,25 +264,23 @@ const App = () => {
       timestamp: new Date().toISOString(),
       mode, chapter, total, score,
       percent: total ? Math.round((score/total)*100) : 0,
-      durationSec: mode==='test' ? timeForN(total) : null,
+      durationSec: mode==='test' ? timeForN(total) : null, // consistent with rule
       answers: Array.from({length: total}, (_,i)=>answers[i] ?? null),
       questions: activeSet.map(q=>({chapter:q.chapter, question:q.question, options:q.options, answer:q.answer, source:q.source ?? null}))
     };
     const h = store.get(); h.unshift(entry); store.set(h.slice(0,50));
-  }, [page, total, score, answers, activeSet, mode, chapter]);
+  }, [page]); // keep dependencies stable
 
   /* ----------------- RENDER ----------------- */
   if (loading) {
     return (<>
-      <TopBar page={page} mode={mode} timeLeft={remaining}
-              onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
+      <TopBar page={page} mode={mode} timeLeft={remaining} onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
       <main className="max-w-6xl mx-auto px-4 py-10 text-center text-gray-500">Loading questions…</main>
     </>);
   }
   if (err) {
     return (<>
-      <TopBar page={page} mode={mode} timeLeft={remaining}
-              onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
+      <TopBar page={page} mode={mode} timeLeft={remaining} onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
       <main className="max-w-6xl mx-auto px-4 py-10 text-center text-red-600">{err}</main>
     </>);
   }
@@ -306,9 +300,10 @@ const App = () => {
         <Background/>
         <main className="relative max-w-6xl mx-auto px-4 py-10">
           <section className={cardWrap}>
-            <div className={glassCard}>
+            <div className={`${glassCard} max-w-5xl`}>
               <div className="pointer-events-none absolute -top-16 -left-16 w-72 h-72 bg-white/20 rounded-full blur-3xl"></div>
 
+              {/* Big title inside card */}
               <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-gray-900">
                 EconoLearn <span className="font-semibold text-gray-500">— MCQ Practice for CUET PG Economics</span>
               </h2>
@@ -317,7 +312,7 @@ const App = () => {
               <div className="mt-6 grid md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm">Chapter Filter</label>
-                  <SmartSelect
+                  <FancySelect
                     value={chapter}
                     onChange={setChapter}
                     options={chapterList}
@@ -337,7 +332,7 @@ const App = () => {
               </div>
 
               {mode==='test' && (
-                <div className="mt-5 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+                <div className="mt-5 flex flex-col md:flex-row md:items-end gap-4">
                   <div>
                     <label className="text-sm">No. of Questions</label>
                     <input
@@ -346,7 +341,7 @@ const App = () => {
                       max={filteredCount}
                       value={testCount}
                       onChange={e=>setTestCount(e.target.value)}
-                      className="w-20 md:w-24 p-2 border rounded-lg bg-white/60 backdrop-blur"
+                      className="w-28 md:w-28 p-2 border rounded-lg bg-white/60 backdrop-blur"
                     />
                     <p className="text-xs text-gray-700 mt-1">
                       Available: {filteredCount}
@@ -358,9 +353,10 @@ const App = () => {
                     </p>
                   </div>
 
-                  <div className="md:text-right">
+                  {/* Time limit on the same line */}
+                  <div className="md:ml-auto">
                     <label className="text-sm block">Time limit</label>
-                    <div className="p-2 border rounded bg-white/60 backdrop-blur text-sm w-20 md:w-24 text-center">
+                    <div className="p-2 border rounded bg-white/60 backdrop-blur text-sm w-28 md:w-28 text-center">
                       {fmt(est)}
                     </div>
                   </div>
@@ -370,7 +366,7 @@ const App = () => {
               <div className="mt-6 flex gap-3 flex-wrap">
                 {mode==='practice' ? (
                   <button
-                    onClick={()=>{ const s = chapter==='All'?questions:questions.filter(q=>q.chapter===chapter); setActiveSet(s); setCurrent(0); setAnswers({}); setMarked({}); setSkipped({}); stopTimer(); setPage('quiz'); }}
+                    onClick={startPractice}
                     className={solidBtn("bg-teal-600 hover:bg-teal-700")}
                   >
                     Start Practice
@@ -396,6 +392,8 @@ const App = () => {
   /* ---- QUIZ ---- */
   if (page==='quiz') {
     const q = activeSet[current]; if (!q) return null;
+    const attemptedCount = Object.keys(answers).filter(k => answers[k] != null).length;
+    const unattemptedCount = Math.max(0, activeSet.length - attemptedCount);
 
     return (
       <>
@@ -451,8 +449,8 @@ const App = () => {
                     <div className="flex-1" />
                     <div className="flex items-center gap-4">
                       <div className="text-[13px] text-gray-700 text-right leading-tight">
-                        <div>Attempted: <b>{Object.keys(answers).filter(k=>answers[k]!=null).length}</b></div>
-                        <div className="mt-1">Unattempted: <b>{Math.max(0, activeSet.length - Object.keys(answers).filter(k=>answers[k]!=null).length)}</b></div>
+                        <div>Attempted: <b>{attemptedCount}</b></div>
+                        <div className="mt-1">Unattempted: <b>{unattemptedCount}</b></div>
                       </div>
                       {current < activeSet.length-1 ? (
                         <button onClick={()=>{ if(!answers[current] && !marked[current]) setSkipped(p=>({...p,[current]:true})); setCurrent(c=>c+1); }} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Next</button>
@@ -546,127 +544,183 @@ const App = () => {
     );
   }
 
-  /* ---- HISTORY (beautified) ---- */
-  if (page==='history') {
+  /* ---- HISTORY (with quick actions) ---- */
+  if (page === 'history') {
     const h = store.get();
-    const sorted = [...h].sort((a,b)=>{
-      if (sortBy==='date_desc') return new Date(b.timestamp) - new Date(a.timestamp);
-      if (sortBy==='date_asc')  return new Date(a.timestamp) - new Date(b.timestamp);
-      if (sortBy==='score_desc') return (b.percent||0) - (a.percent||0);
-      if (sortBy==='score_asc')  return (a.percent||0) - (b.percent||0);
+    const sorted = [...h].sort((a, b) => {
+      if (sortBy === 'date_desc') return new Date(b.timestamp) - new Date(a.timestamp);
+      if (sortBy === 'date_asc') return new Date(a.timestamp) - new Date(b.timestamp);
+      if (sortBy === 'score_desc') return (b.percent || 0) - (a.percent || 0);
+      if (sortBy === 'score_asc') return (a.percent || 0) - (b.percent || 0);
       return 0;
     });
 
+    const goHomeFromHistory = (ch, modeNext = 'practice', n = null) => {
+      setChapter(ch);
+      setMode(modeNext);
+      if (n != null) setTestCount(n);
+      setPage('home');
+      setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 0);
+    };
+
+    const pill = (extra = "") =>
+      `px-3 py-1.5 rounded-lg text-sm border bg-white/70 backdrop-blur
+       hover:bg-white/90 transition shadow-sm hover:shadow ${extra}`;
+
     return (
       <>
-        <TopBar page={page} mode={mode} timeLeft={remaining}
-                onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
-        <Background/>
-        <main className="max-w-6xl mx-auto px-4 py-8">
-          <section className={cardWrap}>
-            <div className={glassCard}>
-              <h2 className="text-xl font-semibold mb-4">Past Results</h2>
-              <div className="flex items-center gap-3 mb-4">
-                <span className="text-sm text-gray-600">Sort:</span>
-                <select className="border rounded px-2 py-1 bg-white/70 backdrop-blur" value={sortBy} onChange={e=>setSortBy(e.target.value)}>
-                  <option value="date_desc">Newest first</option>
-                  <option value="date_asc">Oldest first</option>
-                  <option value="score_desc">Score high → low</option>
-                  <option value="score_asc">Score low → high</option>
-                </select>
-              </div>
+        <TopBar
+          page={page}
+          mode={mode}
+          timeLeft={remaining}
+          onHome={() => setPage('home')}
+          onHistory={() => setPage('history')}
+          onAnalytics={() => setPage('analytics')}
+        />
 
-              {sorted.length===0 ? (
-                <div className="text-gray-500">No attempts yet.</div>
-              ) : (
-                <div className="space-y-4">
-                  {sorted.map(a=>(
-                    <details key={a.id} className="rounded-xl border bg-white/70 backdrop-blur p-4">
-                      <summary className="cursor-pointer flex items-center justify-between">
-                        <div>
-                          <div className="font-semibold">{new Date(a.timestamp).toLocaleString()} • {a.mode} • {a.chapter}</div>
-                          <div className="text-sm text-gray-700">Score: {a.score}/{a.total} ({a.percent}%) {a.durationSec?`• Time: ${fmt(a.durationSec)}`:''}</div>
-                        </div>
-                      </summary>
-                      <div className="mt-3 space-y-2">
-                        {(a.questions||[]).map((q,i)=>{
-                          const your=(a.answers||[])[i]; const ok=your===q.answer;
-                          return (
-                            <div key={i} className="p-3 border rounded bg-white/60">
-                              <div className="flex justify-between">
-                                <b>Q{i+1}. {q.question}</b>
-                                <span className={`text-xs px-2 py-1 rounded ${ok?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}`}>{ok?'Correct':'Incorrect'}</span>
-                              </div>
-                              <div className="text-sm text-gray-700">Chapter: {q.chapter || '—'} • Source: {q.source || '—'}</div>
-                              <div className="text-sm">Your: {your || 'Not answered'} • Correct: <b className="text-green-700">{q.answer}</b></div>
-                            </div>
-                          );
-                        })}
+        <main className="max-w-6xl mx-auto px-4 py-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold">Past Results</h2>
+            <select
+              className="border rounded px-2 py-1"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+            >
+              <option value="date_desc">Newest first</option>
+              <option value="date_asc">Oldest first</option>
+              <option value="score_desc">Score high → low</option>
+              <option value="score_asc">Score low → high</option>
+            </select>
+          </div>
+
+          {sorted.length === 0 ? (
+            <div className="text-gray-500">No attempts yet.</div>
+          ) : (
+            <div className="space-y-4">
+              {sorted.map((a) => (
+                <details key={a.id} className="rounded-xl border bg-white/70 backdrop-blur p-4">
+                  <summary className="cursor-pointer flex items-center justify-between gap-4">
+                    <div>
+                      <div className="font-semibold">
+                        {new Date(a.timestamp).toLocaleString()} • {a.mode} • {a.chapter}
                       </div>
-                    </details>
-                  ))}
-                </div>
-              )}
+                      <div className="text-sm text-gray-700">
+                        Score: {a.score}/{a.total} ({a.percent}%)
+                        {a.durationSec ? ` • Time: ${fmt(a.durationSec)}` : ''}
+                      </div>
+                    </div>
+
+                    {/* Right-side quick actions (prevent toggle) */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        className={pill()}
+                        title={`Practice ${a.chapter}`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          goHomeFromHistory(a.chapter, 'practice');
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            goHomeFromHistory(a.chapter, 'practice');
+                          }
+                        }}
+                      >
+                        Practice this chapter
+                      </button>
+                      <button
+                        className={pill("border-teal-400")}
+                        title={`Retake ${a.total}-Q test in ${a.chapter}`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          goHomeFromHistory(a.chapter, 'test', a.total);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            goHomeFromHistory(a.chapter, 'test', a.total);
+                          }
+                        }}
+                      >
+                        Retake test ({a.total})
+                      </button>
+                    </div>
+                  </summary>
+
+                  {/* Per-question breakdown */}
+                  <div className="mt-3 space-y-2">
+                    {a.questions.map((q, i) => {
+                      const your = a.answers[i];
+                      const ok = your === q.answer;
+                      return (
+                        <div key={i} className="p-3 border rounded bg-white/60">
+                          <div className="flex justify-between">
+                            <b>Q{i + 1}. {q.question}</b>
+                            <span
+                              className={`text-xs px-2 py-1 rounded ${
+                                ok ? 'bg-green-100 text-green-700'
+                                   : 'bg-red-100 text-red-700'
+                              }`}
+                            >
+                              {ok ? 'Correct' : 'Incorrect'}
+                            </span>
+                          </div>
+                          <div className="text-sm text-gray-700">
+                            Chapter: {q.chapter || '—'} • Source: {q.source || '—'}
+                          </div>
+                          <div className="text-sm">
+                            Your: {your || 'Not answered'} • Correct:{' '}
+                            <b className="text-green-700">{q.answer}</b>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </details>
+              ))}
             </div>
-          </section>
+          )}
         </main>
       </>
     );
   }
 
-  /* ---- ANALYTICS (beautified + defensive) ---- */
+  /* ---- ANALYTICS ---- */
   if (page==='analytics') {
     const hist = store.get();
     const agg = {};
-    (hist||[]).forEach(at => (at.questions||[]).forEach((q,i)=>{
-      const ch=q.chapter||'Unknown';
-      if(!agg[ch]) agg[ch]={correct:0,total:0};
-      agg[ch].total++;
-      if ((at.answers||[])[i] === q.answer) agg[ch].correct++;
+    hist.forEach(at => at.questions.forEach((q,i)=>{
+      const ch=q.chapter||'Unknown'; if(!agg[ch]) agg[ch]={correct:0,total:0};
+      agg[ch].total++; if(at.answers[i]===q.answer) agg[ch].correct++;
     }));
     const rows = Object.entries(agg).map(([ch,{correct,total}])=>({ch,correct,total,pct: total?Math.round(correct/total*100):0}))
                                    .sort((a,b)=>a.ch.localeCompare(b.ch));
-
-    const overall = rows.reduce((acc,r)=>({correct:acc.correct+r.correct,total:acc.total+r.total}),{correct:0,total:0});
-    const overallPct = overall.total? Math.round(overall.correct/overall.total*100):0;
 
     return (
       <>
         <TopBar page={page} mode={mode} timeLeft={remaining}
                 onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
-        <Background/>
         <main className="max-w-6xl mx-auto px-4 py-8">
-          <section className={cardWrap}>
-            <div className={glassCard}>
-              <h2 className="text-xl font-semibold mb-4">Chapter-wise Analytics</h2>
-
-              <div className="mb-6 rounded-xl border bg-white/70 backdrop-blur p-4">
-                <div className="flex items-center justify-between">
-                  <div className="font-semibold">Overall accuracy</div>
-                  <div className="text-sm text-gray-700">{overall.correct}/{overall.total} correct • {overallPct}%</div>
+          <h2 className="text-2xl font-bold mb-4">Chapter-wise Analytics</h2>
+          {rows.length===0 ? <div className="text-gray-500">No data yet.</div> : (
+            <div className="space-y-3">
+              {rows.map(r=>(
+                <div key={r.ch} className="p-4 border rounded-xl bg-white/70 backdrop-blur">
+                  <div className="flex items-center justify-between">
+                    <div className="font-semibold">{r.ch}</div>
+                    <div className="text-sm text-gray-700">{r.correct}/{r.total} correct • {r.pct}%</div>
+                  </div>
+                  <div className="mt-2 h-3 w-full bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-teal-500" style={{width:`${r.pct}%`}}/>
+                  </div>
                 </div>
-                <div className="mt-2 h-3 w-full bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-teal-500" style={{width:`${overallPct}%`}}/>
-                </div>
-              </div>
-
-              {rows.length===0 ? <div className="text-gray-500">No data yet.</div> : (
-                <div className="grid md:grid-cols-2 gap-4">
-                  {rows.map(r=>(
-                    <div key={r.ch} className="p-4 rounded-xl border bg-white/70 backdrop-blur">
-                      <div className="flex items-center justify-between">
-                        <div className="font-semibold">{r.ch}</div>
-                        <div className="text-sm text-gray-700">{r.correct}/{r.total} • {r.pct}%</div>
-                      </div>
-                      <div className="mt-2 h-3 w-full bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-teal-500" style={{width:`${r.pct}%`}}/>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              ))}
             </div>
-          </section>
+          )}
         </main>
       </>
     );
