@@ -1,10 +1,23 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover"
+  />
   <title>EconoLearn – MCQ Practice for CUET PG Economics</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="theme-color" content="#ef9ca7" />
+
+  <!-- PWA theming -->
+  <meta name="theme-color" content="#fce7f3" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+
+  <!-- PWA manifest & icons -->
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" type="image/png" sizes="16x16" href="./favicon-16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png" />
 
   <!-- Tailwind (CDN) -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -12,60 +25,96 @@
     tailwind.config = {
       theme: {
         extend: {
-          colors: {
-            primary: "#0ea5a4",
-            roseGlass: "#fde4e8"
+          fontFamily: {
+            poppins: ['Poppins', 'ui-sans-serif', 'system-ui', 'sans-serif']
           },
-          fontFamily: { poppins: ["Poppins","sans-serif"] }
+          colors: {
+            brand: {
+              50:  '#fff1f7',
+              100: '#ffe4ef',
+              200: '#fecddc',
+              300: '#fda4af',
+              400: '#fb7185',
+              500: '#f43f5e'
+            }
+          }
         }
       }
     }
   </script>
 
-  <!-- Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <!-- Font (optional) -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-  <!-- React UMD + Babel -->
+  <!-- Minimal base styles -->
+  <style>
+    html, body { height: 100%; }
+    body {
+      font-family: 'Poppins', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background:
+        radial-gradient(1200px 220px at 50% -20%, rgba(255,192,203,0.12), transparent 60%),
+        #ffffff;
+      color: #111827;
+      -webkit-tap-highlight-color: transparent;
+    }
+    @keyframes slide { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+
+  <!-- React UMD + Babel (only "react" preset) -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-  <style>
-    html,body { height:100%; background:#fff; font-family: 'Poppins', sans-serif; }
-    @keyframes slide { from {opacity:0; transform: translateY(6px);} to {opacity:1; transform: translateY(0);} }
-
-    /* Ripple for touch */
-    .ripple {
-      position: relative; overflow: hidden;
-    }
-    .ripple:after {
-      content:""; position:absolute; inset:0;
-      border-radius:inherit; transform: scale(0);
-      background: rgba(0,0,0,.08); opacity:0; pointer-events:none;
-      transition: transform .35s ease, opacity .45s ease;
-    }
-    .ripple:active:after { transform: scale(1.2); opacity:1; }
-
-    /* Touch pressed effect when hover is absent */
-    @media (hover:none) {
-      .touch-press:active { transform: scale(.98); }
-    }
-  </style>
 </head>
 
-<body>
-  <div id="root" class="min-h-screen"></div>
+<body class="min-h-screen">
+  <!-- App root -->
+  <div id="root"></div>
 
-  <!-- PWA SW (optional, safe if already present) -->
+  <!-- Service Worker: fast update + one-time auto-reload -->
   <script>
+    // Let the SW know we support immediate activation
+    navigator.serviceWorker?.addEventListener('message', (evt) => {
+      if (evt.data && evt.data.type === 'SKIP_WAITING') {
+        // no-op: we trigger reload on controllerchange below
+      }
+    });
+
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
+        navigator.serviceWorker.register('./service-worker.js').then(reg => {
+          // If a new SW is waiting, activate it
+          if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+
+          // When a new SW is found, make it activate ASAP
+          reg.onupdatefound = () => {
+            const newSW = reg.installing;
+            if (!newSW) return;
+            newSW.onstatechange = () => {
+              if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+                newSW.postMessage({ type: 'SKIP_WAITING' });
+              }
+            };
+          };
+        }).catch(() => {});
+      });
+
+      // Reload once when the new SW takes control
+      let reloaded = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (reloaded) return;
+        reloaded = true;
+        location.reload();
       });
     }
   </script>
 
-  <!-- App -->
+  <!-- Your React app (Babel compiles on the fly; preset=react only) -->
   <script type="text/babel" data-presets="react" src="./main.jsx"></script>
+
+  <noscript>
+    <div style="padding:16px; text-align:center;">
+      Please enable JavaScript to use EconoLearn.
+    </div>
+  </noscript>
 </body>
 </html>
