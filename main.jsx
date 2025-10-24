@@ -1,4 +1,4 @@
-/* ===================== EconoLearn - main.jsx (Final with History Quick Actions) ===================== */
+/* ===================== EconoLearn - main.jsx (Hero + Alignments + Analytics robust) ===================== */
 const { useEffect, useRef, useState } = React;
 
 /* ----------------- LocalStorage helpers ----------------- */
@@ -24,10 +24,11 @@ const fmt = (s) => {                                    // HH:MM:SS (or MM:SS if
 const shuffle = (arr) => { const a = arr.slice(); for (let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]];} return a; };
 const pickN = (arr, n) => shuffle(arr).slice(0, n);
 
-/* ----------------- Background (Ganesh left, responsive) ----------------- */
+/* ----------------- Background (Ganesh left, moved up) ----------------- */
 const Background = () => (
   <>
-    <div className="pointer-events-none fixed left-0 top-1/2 -translate-y-1/2
+    {/* moved upward: top-[38%] instead of top-1/2 */}
+    <div className="pointer-events-none fixed left-0 top-[38%] -translate-y-1/2
                     w-[45vmin] h-[60vmin] sm:w-[40vmin] sm:h-[55vmin]
                     bg-[url('./ganesh.png')] bg-no-repeat bg-contain bg-left
                     opacity-25 rounded-[999px]" />
@@ -91,6 +92,17 @@ const TopBar = ({ onHome, onHistory, onAnalytics, page, mode, timeLeft }) => (
   </header>
 );
 
+/* ----------------- Hero title in the empty space ----------------- */
+const HeroTitle = () => (
+  <div className="max-w-6xl mx-auto px-4">
+    <div className="h-8 sm:h-10" />
+    <h2 className="text-center text-4xl sm:text-5xl font-extrabold tracking-tight text-rose-300/90 select-none">
+      EconoLearn
+    </h2>
+    <div className="h-6 sm:h-8" />
+  </div>
+);
+
 /* ----------------- Progress ----------------- */
 const Progress = ({ i, total }) => {
   const pct = total ? Math.round(((i+1)/total)*100) : 0;
@@ -118,7 +130,7 @@ function FancySelect({ value, onChange, options }) {
       if (!btnRef.current) return;
       if (!btnRef.current.contains(e.target) && !portalRef.current.contains(e.target)) setOpen(false);
     };
-    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); }
     document.addEventListener('mousedown', onDoc);
     document.addEventListener('keydown', onKey);
     return () => {
@@ -144,7 +156,6 @@ function FancySelect({ value, onChange, options }) {
     setOpen(v => !v);
   };
 
-  // keep portal tracking position while open (resize/scroll)
   useEffect(() => {
     if (!open || !btnRef.current || !portalRef.current) return;
     const update = () => {
@@ -182,10 +193,7 @@ function FancySelect({ value, onChange, options }) {
       </button>
 
       {open && portalRef.current && ReactDOM.createPortal(
-        <ul
-          className="max-h-56 overflow-auto rounded-xl border bg-white/95 backdrop-blur shadow-2xl"
-          role="listbox"
-        >
+        <ul className="max-h-56 overflow-auto rounded-xl border bg-white/95 backdrop-blur shadow-2xl" role="listbox">
           {options.map(opt => (
             <li
               key={opt}
@@ -205,7 +213,6 @@ function FancySelect({ value, onChange, options }) {
 
 /* ====================================================================== */
 const App = () => {
-  /* ---- global state ---- */
   const [page, setPage] = useState('home');           // home | quiz | result | history | analytics
   const [mode, setMode] = useState('practice');       // practice | test
   const [questions, setQuestions] = useState([]);
@@ -223,9 +230,8 @@ const App = () => {
 
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
-  const [sortBy, setSortBy] = useState('date_desc');  // history sort
+  const [sortBy, setSortBy] = useState('date_desc');
 
-  /* ---- load questions ---- */
   useEffect(() => {
     fetch('questions.json?v=' + Date.now())
       .then(r => { if(!r.ok) throw new Error('bad'); return r.json(); })
@@ -234,29 +240,25 @@ const App = () => {
       .finally(()=> setLoading(false));
   }, []);
 
-  /* ---- derived ---- */
   const total = activeSet.length;
   const score = activeSet.reduce((s,q,i)=>s+(answers[i]===q.answer?1:0),0);
 
-  /* ---- timer ---- */
   const stopTimer = ()=>{ if (timer.current){ clearInterval(timer.current); timer.current=null; } };
   const startTimer = (sec)=>{ stopTimer(); setRemaining(sec);
     timer.current=setInterval(()=>{ setRemaining(p=>{ if(p<=1){ clearInterval(timer.current); setPage('result'); return 0; } return p-1; }); }, 1000);
   };
 
-  /* ---- navigation helpers ---- */
   const resetRun = ()=>{ setCurrent(0); setAnswers({}); setMarked({}); setSkipped({}); };
   const startPractice = ()=>{ const s = chapter==='All'?questions:questions.filter(q=>q.chapter===chapter); setActiveSet(s); resetRun(); stopTimer(); setPage('quiz'); };
 
   const startTest = ()=>{ 
     const pool = chapter==='All'?questions:questions.filter(q=>q.chapter===chapter);
     const requestedN = Math.max(1, parseInt(testCount || 1, 10));
-    const n = Math.max(1, Math.min(requestedN, pool.length));   // clamp to available
+    const n = Math.max(1, Math.min(requestedN, pool.length));
     const s = pickN(pool, n);
     setActiveSet(s); resetRun(); startTimer(timeForN(n)); setPage('quiz'); 
   };
 
-  /* ---- persist to history on result ---- */
   useEffect(() => {
     if (page !== 'result' || !total) return;
     const entry = {
@@ -264,14 +266,13 @@ const App = () => {
       timestamp: new Date().toISOString(),
       mode, chapter, total, score,
       percent: total ? Math.round((score/total)*100) : 0,
-      durationSec: mode==='test' ? timeForN(total) : null, // consistent with rule
+      durationSec: mode==='test' ? timeForN(total) : null,
       answers: Array.from({length: total}, (_,i)=>answers[i] ?? null),
       questions: activeSet.map(q=>({chapter:q.chapter, question:q.question, options:q.options, answer:q.answer, source:q.source ?? null}))
     };
     const h = store.get(); h.unshift(entry); store.set(h.slice(0,50));
-  }, [page]); // keep dependencies stable
+  }, [page]); // stable deps to avoid hook order change
 
-  /* ----------------- RENDER ----------------- */
   if (loading) {
     return (<>
       <TopBar page={page} mode={mode} timeLeft={remaining} onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
@@ -285,7 +286,7 @@ const App = () => {
     </>);
   }
 
-  /* ---- HOME ---- */
+  /* ----------------- HOME ----------------- */
   if (page==='home') {
     const chapterList = ['All',...new Set(questions.map(q=>q.chapter).filter(Boolean))];
     const filteredCount = chapter==='All'?questions.length:questions.filter(q=>q.chapter===chapter).length;
@@ -298,12 +299,16 @@ const App = () => {
         <TopBar page={page} mode={mode} timeLeft={remaining}
                 onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
         <Background/>
-        <main className="relative max-w-6xl mx-auto px-4 py-10">
-          <section className={cardWrap}>
+
+        {/* NEW hero title area to use the space */}
+        <HeroTitle />
+
+        <main className="relative max-w-6xl mx-auto px-4">
+          {/* push card a bit down */}
+          <section className={`${cardWrap} mt-2 mb-10`}>
             <div className={`${glassCard} max-w-5xl`}>
               <div className="pointer-events-none absolute -top-16 -left-16 w-72 h-72 bg-white/20 rounded-full blur-3xl"></div>
 
-              {/* Big title inside card */}
               <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-gray-900">
                 EconoLearn <span className="font-semibold text-gray-500">— MCQ Practice for CUET PG Economics</span>
               </h2>
@@ -312,11 +317,7 @@ const App = () => {
               <div className="mt-6 grid md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm">Chapter Filter</label>
-                  <FancySelect
-                    value={chapter}
-                    onChange={setChapter}
-                    options={chapterList}
-                  />
+                  <FancySelect value={chapter} onChange={setChapter} options={chapterList} />
                 </div>
                 <div>
                   <label className="text-sm">Mode</label>
@@ -332,7 +333,8 @@ const App = () => {
               </div>
 
               {mode==='test' && (
-                <div className="mt-5 flex flex-col md:flex-row md:items-end gap-4">
+                /* aligned row: smaller boxes + right aligned time */
+                <div className="mt-5 grid md:grid-cols-[auto_1fr_auto] md:items-end gap-6">
                   <div>
                     <label className="text-sm">No. of Questions</label>
                     <input
@@ -341,7 +343,7 @@ const App = () => {
                       max={filteredCount}
                       value={testCount}
                       onChange={e=>setTestCount(e.target.value)}
-                      className="w-28 md:w-28 p-2 border rounded-lg bg-white/60 backdrop-blur"
+                      className="w-28 p-2 border rounded-lg bg-white/60 backdrop-blur"
                     />
                     <p className="text-xs text-gray-700 mt-1">
                       Available: {filteredCount}
@@ -353,10 +355,11 @@ const App = () => {
                     </p>
                   </div>
 
-                  {/* Time limit on the same line */}
-                  <div className="md:ml-auto">
-                    <label className="text-sm block">Time limit</label>
-                    <div className="p-2 border rounded bg-white/60 backdrop-blur text-sm w-28 md:w-28 text-center">
+                  <div className="hidden md:block" /> {/* spacer column on desktop */}
+
+                  <div className="justify-self-end">
+                    <label className="text-sm block text-right">Time limit</label>
+                    <div className="p-2 border rounded bg-white/60 backdrop-blur text-sm w-28 text-center">
                       {fmt(est)}
                     </div>
                   </div>
@@ -365,17 +368,11 @@ const App = () => {
 
               <div className="mt-6 flex gap-3 flex-wrap">
                 {mode==='practice' ? (
-                  <button
-                    onClick={startPractice}
-                    className={solidBtn("bg-teal-600 hover:bg-teal-700")}
-                  >
+                  <button onClick={startPractice} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>
                     Start Practice
                   </button>
                 ) : (
-                  <button
-                    onClick={startTest}
-                    className={solidBtn("bg-teal-600 hover:bg-teal-700")}
-                  >
+                  <button onClick={startTest} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>
                     Start Test
                   </button>
                 )}
@@ -389,7 +386,7 @@ const App = () => {
     );
   }
 
-  /* ---- QUIZ ---- */
+  /* ----------------- QUIZ ----------------- */
   if (page==='quiz') {
     const q = activeSet[current]; if (!q) return null;
     const attemptedCount = Object.keys(answers).filter(k => answers[k] != null).length;
@@ -463,7 +460,6 @@ const App = () => {
               </section>
             </div>
 
-            {/* Palette */}
             <aside className="lg:sticky lg:top-[72px]">
               <div className="rounded-2xl p-4 bg-white/70 backdrop-blur border border-white/60 shadow">
                 <div className="flex items-center justify-between mb-2">
@@ -502,7 +498,7 @@ const App = () => {
     );
   }
 
-  /* ---- RESULT ---- */
+  /* ----------------- RESULT ----------------- */
   if (page==='result') {
     const percent = total?Math.round(score/total*100):0;
     return (
@@ -544,7 +540,7 @@ const App = () => {
     );
   }
 
-  /* ---- HISTORY (with quick actions) ---- */
+  /* ----------------- HISTORY ----------------- */
   if (page === 'history') {
     const h = store.get();
     const sorted = [...h].sort((a, b) => {
@@ -556,11 +552,8 @@ const App = () => {
     });
 
     const goHomeFromHistory = (ch, modeNext = 'practice', n = null) => {
-      setChapter(ch);
-      setMode(modeNext);
-      if (n != null) setTestCount(n);
-      setPage('home');
-      setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 0);
+      setChapter(ch); setMode(modeNext); if (n != null) setTestCount(n);
+      setPage('home'); setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 0);
     };
 
     const pill = (extra = "") =>
@@ -569,23 +562,13 @@ const App = () => {
 
     return (
       <>
-        <TopBar
-          page={page}
-          mode={mode}
-          timeLeft={remaining}
-          onHome={() => setPage('home')}
-          onHistory={() => setPage('history')}
-          onAnalytics={() => setPage('analytics')}
-        />
+        <TopBar page={page} mode={mode} timeLeft={remaining}
+                onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
 
         <main className="max-w-6xl mx-auto px-4 py-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-bold">Past Results</h2>
-            <select
-              className="border rounded px-2 py-1"
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-            >
+            <select className="border rounded px-2 py-1" value={sortBy} onChange={(e)=>setSortBy(e.target.value)}>
               <option value="date_desc">Newest first</option>
               <option value="date_asc">Oldest first</option>
               <option value="score_desc">Score high → low</option>
@@ -609,73 +592,26 @@ const App = () => {
                         {a.durationSec ? ` • Time: ${fmt(a.durationSec)}` : ''}
                       </div>
                     </div>
-
-                    {/* Right-side quick actions (prevent toggle) */}
                     <div className="flex items-center gap-2">
-                      <button
-                        className={pill()}
-                        title={`Practice ${a.chapter}`}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          goHomeFromHistory(a.chapter, 'practice');
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            goHomeFromHistory(a.chapter, 'practice');
-                          }
-                        }}
-                      >
+                      <button className={pill()} onClick={(e)=>{e.preventDefault();e.stopPropagation();goHomeFromHistory(a.chapter,'practice');}}>
                         Practice this chapter
                       </button>
-                      <button
-                        className={pill("border-teal-400")}
-                        title={`Retake ${a.total}-Q test in ${a.chapter}`}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          goHomeFromHistory(a.chapter, 'test', a.total);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            goHomeFromHistory(a.chapter, 'test', a.total);
-                          }
-                        }}
-                      >
+                      <button className={pill("border-teal-400")} onClick={(e)=>{e.preventDefault();e.stopPropagation();goHomeFromHistory(a.chapter,'test',a.total);}}>
                         Retake test ({a.total})
                       </button>
                     </div>
                   </summary>
-
-                  {/* Per-question breakdown */}
                   <div className="mt-3 space-y-2">
-                    {a.questions.map((q, i) => {
-                      const your = a.answers[i];
-                      const ok = your === q.answer;
+                    {a.questions.map((q,i)=>{
+                      const your=a.answers[i]; const ok=your===q.answer;
                       return (
                         <div key={i} className="p-3 border rounded bg-white/60">
                           <div className="flex justify-between">
-                            <b>Q{i + 1}. {q.question}</b>
-                            <span
-                              className={`text-xs px-2 py-1 rounded ${
-                                ok ? 'bg-green-100 text-green-700'
-                                   : 'bg-red-100 text-red-700'
-                              }`}
-                            >
-                              {ok ? 'Correct' : 'Incorrect'}
-                            </span>
+                            <b>Q{i+1}. {q.question}</b>
+                            <span className={`text-xs px-2 py-1 rounded ${ok?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}`}>{ok?'Correct':'Incorrect'}</span>
                           </div>
-                          <div className="text-sm text-gray-700">
-                            Chapter: {q.chapter || '—'} • Source: {q.source || '—'}
-                          </div>
-                          <div className="text-sm">
-                            Your: {your || 'Not answered'} • Correct:{' '}
-                            <b className="text-green-700">{q.answer}</b>
-                          </div>
+                          <div className="text-sm text-gray-700">Chapter: {q.chapter || '—'} • Source: {q.source || '—'}</div>
+                          <div className="text-sm">Your: {your || 'Not answered'} • Correct: <b className="text-green-700">{q.answer}</b></div>
                         </div>
                       );
                     })}
@@ -689,7 +625,7 @@ const App = () => {
     );
   }
 
-  /* ---- ANALYTICS ---- */
+  /* ----------------- ANALYTICS (never blank) ----------------- */
   if (page==='analytics') {
     const hist = store.get();
     const agg = {};
@@ -706,7 +642,11 @@ const App = () => {
                 onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
         <main className="max-w-6xl mx-auto px-4 py-8">
           <h2 className="text-2xl font-bold mb-4">Chapter-wise Analytics</h2>
-          {rows.length===0 ? <div className="text-gray-500">No data yet.</div> : (
+          {rows.length===0 ? (
+            <div className="text-gray-600 bg-white/70 backdrop-blur border rounded-xl p-6">
+              No data yet. Take a quick practice or test to see analytics here.
+            </div>
+          ) : (
             <div className="space-y-3">
               {rows.map(r=>(
                 <div key={r.ch} className="p-4 border rounded-xl bg-white/70 backdrop-blur">
