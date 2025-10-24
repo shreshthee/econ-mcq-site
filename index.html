@@ -5,10 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>EconoLearn – MCQ Practice for CUET PG Economics</title>
 
-  <!-- PWA colors -->
   <meta name="theme-color" content="#fce7f3" />
 
-  <!-- Manifest & icons -->
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png" />
@@ -20,50 +18,48 @@
     tailwind.config = {
       theme: {
         extend: {
-          fontFamily: { inter: ['Inter', 'system-ui', 'sans-serif'] },
+          fontFamily: { inter: ['Inter','system-ui','sans-serif'] },
           colors: { brand: '#0ea5a4' }
         }
       }
     }
   </script>
 
-  <!-- Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 
   <style>
-    html, body { height: 100%; }
-    body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; background:#fff; color:#111827; }
-    @keyframes rise { from {opacity:0; transform: translateY(6px);} to {opacity:1; transform: translateY(0);} }
-    /* desktop Ganesh */
-    .ganesh-left {
-      position: fixed; left: 12px; top: 120px; width: 260px; height: 360px;
-      background: url('./ganesh.png') no-repeat left/contain; opacity: 0.16; pointer-events: none;
+    body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#fff;color:#111827}
+
+    /* small animations */
+    @keyframes rise { from{opacity:0; transform: translateY(6px)} to{opacity:1; transform: translateY(0)} }
+    @keyframes dropdown { from{opacity:0; transform: translateY(-8px) scale(.98)} to{opacity:1; transform: translateY(0) scale(1)} }
+
+    /* Center Ganesh between heading and card */
+    .ganesh-center {
+      width: 96px; height: 96px; margin: 8px auto 2px auto;
+      background: url('./ganesh.png') no-repeat center/contain; opacity:.25; pointer-events:none;
     }
-    @media (max-width: 1024px){ .ganesh-left{ display:none; } }
   </style>
 
-  <!-- React UMD + Babel (only 'react' preset) -->
+  <!-- React UMD + Babel -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 
 <body>
-  <!-- Desktop Ganesh (hidden on phones) -->
-  <div class="ganesh-left"></div>
-
   <div id="root" class="min-h-screen"></div>
 
-  <!-- Service worker -->
+  <!-- SW -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./service-worker.js').catch(() => {});
+        navigator.serviceWorker.register('./service-worker.js?v=3').catch(()=>{});
       });
     }
   </script>
 
-  <!-- App -->
-  <script type="text/babel" data-presets="react" src="./main.jsx"></script>
+  <!-- App (cache-busted so new version always loads) -->
+  <script type="text/babel" data-presets="react" src="./main.jsx?v=2024-10-24-03"></script>
 </body>
 </html>
