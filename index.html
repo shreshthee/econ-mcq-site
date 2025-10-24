@@ -1,36 +1,67 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>EconoLearn — CUET PG Economics</title>
-    <link rel="manifest" href="manifest.webmanifest" />
-    <link rel="icon" type="image/png" href="favicon-32.png" />
-    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              brand: '#14b8a6',
-            },
+<head>
+  <meta charset="utf-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  />
+  <title>EconoLearn – MCQ Practice for CUET PG Economics</title>
+
+  <!-- PWA -->
+  <meta name="theme-color" content="#f9fafb" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png" />
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind (CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { poppins: ['Poppins', 'sans-serif'] },
+          colors: { brand: '#14b8a6' },
+          boxShadow: {
+            'pink-soft': '0 10px 40px rgba(244,63,94,0.18)',
           },
-        },
-      };
-    </script>
-  </head>
-  <body class="bg-white text-gray-900">
-    <div id="root"></div>
-    <script type="text/babel" src="main.jsx"></script>
-    <script>
-      if ("serviceWorker" in navigator) {
-        window.addEventListener("load", () => {
-          navigator.serviceWorker.register("./service-worker.js");
-        });
+          keyframes: {
+            slide: { '0%': { opacity: 0, transform: 'translateY(6px)' }, '100%': { opacity: 1, transform: 'translateY(0)' } }
+          },
+          animation: { slide: 'slide .35s ease both' }
+        }
       }
-    </script>
-  </body>
+    }
+  </script>
+
+  <!-- React UMD + Babel (use ONLY react preset) -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    html, body { height: 100%; }
+    body { font-family: 'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
+  </style>
+</head>
+
+<body class="bg-white text-gray-900 font-poppins">
+  <div id="root"></div>
+
+  <!-- Your app (compiled in-browser by Babel; preset react only) -->
+  <script type="text/babel" data-presets="react" src="./main.jsx"></script>
+
+  <!-- Service Worker (kept scoped to project folder) -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js', { scope: './' }).catch(() => {});
+      });
+    }
+  </script>
+</body>
 </html>
