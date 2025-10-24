@@ -25,13 +25,7 @@ const fmt = (s) => {                                    // HH:MM:SS or MM:SS
 const shuffle = (arr) => { const a = arr.slice(); for (let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]];} return a; };
 const pickN = (arr, n) => shuffle(arr).slice(0, n);
 
-/* ----------------- Background (Ganesh for phones) ----------------- */
-const MobileGanesh = () => (
-  <div className="md:hidden mx-auto mt-3 mb-2 w-28 h-28 opacity-30"
-       style={{background:"url('./ganesh.png') no-repeat center/contain"}} />
-);
-
-/* ----------------- Buttons & cards ----------------- */
+/* ----------------- Cards ----------------- */
 const glassCard = "relative overflow-hidden rounded-3xl p-6 bg-white/60 backdrop-blur-xl border border-white/60 shadow-[0_30px_60px_-40px_rgba(244,114,182,0.55)]";
 const glassPanel= "rounded-[24px] p-[1px] bg-gradient-to-br from-rose-100 via-rose-50 to-rose-100";
 
@@ -44,15 +38,15 @@ const TopBar = ({ onHome, onHistory, onAnalytics, page }) => (
         <span className="text-gray-500 font-semibold"> — CUET PG Economics</span>
       </h1>
       <nav className="flex items-center gap-2 text-sm">
-        {page!=='history' && <button onClick={onHistory} className="px-3 py-1 rounded-lg bg-white shadow border">Review Past Results</button>}
+        {page!=='history'   && <button onClick={onHistory}   className="px-3 py-1 rounded-lg bg-white shadow border">Review Past Results</button>}
         {page!=='analytics' && <button onClick={onAnalytics} className="px-3 py-1 rounded-lg bg-white shadow border">Analytics</button>}
-        {page!=='home' && <button onClick={onHome} className="px-3 py-1 rounded-lg bg-white shadow border">Home</button>}
+        {page!=='home'      && <button onClick={onHome}      className="px-3 py-1 rounded-lg bg-white shadow border">Home</button>}
       </nav>
     </div>
   </header>
 );
 
-/* ----------------- FancySelect using a portal (never clipped) ----------------- */
+/* ----------------- FancySelect (portal + animation) ----------------- */
 function FancySelect({ value, onChange, options }) {
   const [open, setOpen] = useState(false);
   const [placement, setPlacement] = useState('bottom');
@@ -64,7 +58,7 @@ function FancySelect({ value, onChange, options }) {
     const r = btnRef.current.getBoundingClientRect();
     setRect(r);
     const below = window.innerHeight - r.bottom;
-    const estimated = Math.min(220, options.length*40 + 12);
+    const estimated = Math.min(240, options.length*40 + 12);
     setPlacement(below >= estimated ? 'bottom' : 'top');
     setOpen(v=>!v);
   };
@@ -89,7 +83,8 @@ function FancySelect({ value, onChange, options }) {
           className="fixed z-[9999] max-h-60 overflow-auto rounded-xl border bg-white/95 backdrop-blur shadow-xl"
           style={{
             left: rect.left, width: rect.width,
-            top: placement==='bottom' ? (rect.bottom + 6) : (rect.top - Math.min(240, options.length*40) - 6)
+            top: placement==='bottom' ? (rect.bottom + 6) : (rect.top - Math.min(240, options.length*40) - 6),
+            animation: 'dropdown .18s ease both'
           }}
           role="listbox"
         >
@@ -186,8 +181,10 @@ const App = () => {
         <TopBar page={page} onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
         <main className="max-w-6xl mx-auto px-4">
           <h2 className="mt-6 text-4xl font-extrabold text-rose-400 text-center">EconoLearn</h2>
-          <MobileGanesh />
-          <section className="mt-4 sm:mt-6 flex justify-center animate-[rise_.35s_ease]">
+          {/* Ganesh between heading and card */}
+          <div className="ganesh-center"></div>
+
+          <section className="mt-2 sm:mt-4 flex justify-center animate-[rise_.35s_ease]">
             <div className={`${glassPanel}`}>
               <div className={`${glassCard} w-[92vw] max-w-4xl`}>
                 <h3 className="text-2xl sm:text-3xl font-extrabold">MCQ Practice for CUET PG Economics</h3>
@@ -198,7 +195,6 @@ const App = () => {
                     <label className="text-sm text-gray-700">Chapter Filter</label>
                     <FancySelect value={chapter} onChange={setChapter} options={chapterList} />
                   </div>
-
                   <div>
                     <label className="text-sm text-gray-700">Mode</label>
                     <div className="flex gap-4 mt-2">
@@ -209,20 +205,20 @@ const App = () => {
                 </div>
 
                 {mode==='test' && (
-                  <div className="mt-4 grid sm:grid-cols-3 items-end gap-4">
+                  <div className="mt-4 grid sm:grid-cols-[1fr_1fr_auto] items-end gap-4">
                     <div>
                       <label className="text-sm text-gray-700 block">No. of Questions</label>
                       <input type="number" min="1" max={filteredCount} value={testCount}
                              onChange={e=>setTestCount(e.target.value)}
-                             className="w-28 p-2 border rounded bg-white" />
+                             className="w-24 p-2 border rounded bg-white" />
                       <div className="text-xs text-gray-600 mt-1">
                         Available: {filteredCount}
                         {requestedN > filteredCount && <span className="ml-1 text-rose-600">(Requested {requestedN}, using {effectiveN})</span>}
                       </div>
                     </div>
-                    <div className="sm:col-start-3 sm:justify-self-end">
+                    <div className="sm:justify-self-end">
                       <label className="text-sm text-gray-700 block">Time limit</label>
-                      <div className="p-2 border rounded bg-white text-sm w-28 text-center">{fmt(est)}</div>
+                      <div className="p-2 border rounded bg-white text-sm w-24 text-center">{fmt(est)}</div>
                     </div>
                   </div>
                 )}
@@ -299,7 +295,6 @@ const App = () => {
               </div></div>
             </div>
 
-            {/* Right palette */}
             <aside className="lg:sticky lg:top-[72px]">
               <div className="rounded-2xl p-4 bg-white/80 backdrop-blur border shadow">
                 <div className="flex items-center justify-between mb-2">
