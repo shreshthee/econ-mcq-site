@@ -1,4 +1,4 @@
-// EconoLearn - Service Worker (static cache for GitHub Pages)
+// EconoLearn - Service Worker (stable)
 const CACHE_NAME = 'econolearn-cache-v1';
 const urlsToCache = [
   './',
@@ -8,23 +8,15 @@ const urlsToCache = [
   './ganesh.png',
   './favicon-32.png',
   './favicon-16.png',
-  './apple-touch-icon.png',
-  './icon-192.png',
-  './icon-512.png'
+  './apple-touch-icon.png'
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(urlsToCache))
-  );
+  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(urlsToCache)));
 });
 
 self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request).then((response) =>
-      response || fetch(event.request)
-    )
-  );
+  event.respondWith(caches.match(event.request).then((response) => response || fetch(event.request)));
 });
 
 self.addEventListener('activate', (event) => {
