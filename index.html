@@ -1,88 +1,71 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8">
   <title>EconoLearn – MCQ Practice for CUET PG Economics</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#ef9ca7" />
 
-  <!-- PWA colors -->
-  <meta name="theme-color" content="#fce7f3" />
-
-  <!-- Manifest & icons (optional but recommended) -->
-  <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
-  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png" />
-  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
-
-  <!-- Tailwind -->
+  <!-- Tailwind (CDN) -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       theme: {
         extend: {
-          fontFamily: { poppins: ['Poppins', 'sans-serif'] },
-          colors: { primary: '#0ea5a4' }
+          colors: {
+            primary: "#0ea5a4",
+            roseGlass: "#fde4e8"
+          },
+          fontFamily: { poppins: ["Poppins","sans-serif"] }
         }
       }
     }
   </script>
 
   <!-- Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
 
-  <!-- Small global styles + animations -->
-  <style>
-    html, body { height: 100%; background:#fff; color:#111827; }
-    body { font-family: 'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
-
-    /* ---- Animations used by main.jsx ---- */
-    @keyframes ripple {
-      from { transform: scale(0); opacity: .35; }
-      to   { transform: scale(3); opacity: 0; }
-    }
-    @keyframes slideFade {
-      from { opacity: 0; transform: translateY(6px) }
-      to   { opacity: 1; transform: translateY(0) }
-    }
-    @keyframes dropdown {
-      from { opacity: 0; transform: translateY(4px) scale(.98) }
-      to   { opacity: 1; transform: translateY(0) scale(1) }
-    }
-
-    /* ---- Ganesh between heading and card ---- */
-    .ganesh-center{
-      width: 160px;
-      height: 160px;
-      margin: 10px auto 0;
-      background: url('./ganesh.png') center/contain no-repeat;
-      opacity: .12;
-      filter: saturate(0) contrast(90%);
-    }
-    @media (min-width: 640px){
-      .ganesh-center{ width: 200px; height: 200px; }
-    }
-  </style>
-
-  <!-- React UMD + Babel (only 'react' preset) -->
+  <!-- React UMD + Babel -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    html,body { height:100%; background:#fff; font-family: 'Poppins', sans-serif; }
+    @keyframes slide { from {opacity:0; transform: translateY(6px);} to {opacity:1; transform: translateY(0);} }
+
+    /* Ripple for touch */
+    .ripple {
+      position: relative; overflow: hidden;
+    }
+    .ripple:after {
+      content:""; position:absolute; inset:0;
+      border-radius:inherit; transform: scale(0);
+      background: rgba(0,0,0,.08); opacity:0; pointer-events:none;
+      transition: transform .35s ease, opacity .45s ease;
+    }
+    .ripple:active:after { transform: scale(1.2); opacity:1; }
+
+    /* Touch pressed effect when hover is absent */
+    @media (hover:none) {
+      .touch-press:active { transform: scale(.98); }
+    }
+  </style>
 </head>
 
-<body class="min-h-screen">
-  <!-- Top banner / app root -->
-  <div id="root"></div>
+<body>
+  <div id="root" class="min-h-screen"></div>
 
-  <!-- Register service worker (GitHub Pages friendly) -->
+  <!-- PWA SW (optional, safe if already present) -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./service-worker.js').catch(() => {});
+        navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
       });
     }
   </script>
 
-  <!-- Your app code -->
+  <!-- App -->
   <script type="text/babel" data-presets="react" src="./main.jsx"></script>
 </body>
 </html>
