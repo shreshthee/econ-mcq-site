@@ -25,25 +25,14 @@
     tailwind.config = {
       theme: {
         extend: {
-          fontFamily: {
-            poppins: ['Poppins', 'ui-sans-serif', 'system-ui', 'sans-serif']
-          },
-          colors: {
-            brand: {
-              50:  '#fff1f7',
-              100: '#ffe4ef',
-              200: '#fecddc',
-              300: '#fda4af',
-              400: '#fb7185',
-              500: '#f43f5e'
-            }
-          }
+          fontFamily: { poppins: ['Poppins', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
+          colors: { brand: { 50:'#fff1f7',100:'#ffe4ef',200:'#fecddc',300:'#fda4af',400:'#fb7185',500:'#f43f5e' } }
         }
       }
     }
   </script>
 
-  <!-- Font (optional) -->
+  <!-- Font -->
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
   <!-- Minimal base styles -->
@@ -72,20 +61,14 @@
 
   <!-- Service Worker: fast update + one-time auto-reload -->
   <script>
-    // Let the SW know we support immediate activation
-    navigator.serviceWorker?.addEventListener('message', (evt) => {
-      if (evt.data && evt.data.type === 'SKIP_WAITING') {
-        // no-op: we trigger reload on controllerchange below
-      }
-    });
-
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./service-worker.js').then(reg => {
+          // Update check
+          reg.update().catch(()=>{});
           // If a new SW is waiting, activate it
           if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-
-          // When a new SW is found, make it activate ASAP
+          // When a new SW is found, activate ASAP
           reg.onupdatefound = () => {
             const newSW = reg.installing;
             if (!newSW) return;
@@ -95,9 +78,8 @@
               }
             };
           };
-        }).catch(() => {});
+        }).catch(()=>{});
       });
-
       // Reload once when the new SW takes control
       let reloaded = false;
       navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -109,7 +91,8 @@
   </script>
 
   <!-- Your React app (Babel compiles on the fly; preset=react only) -->
-  <script type="text/babel" data-presets="react" src="./main.jsx"></script>
+  <!-- Add a version query to hard-bust GitHub Pages caching of JS -->
+  <script type="text/babel" data-presets="react" src="./main.jsx?v=2025-10-24-02"></script>
 
   <noscript>
     <div style="padding:16px; text-align:center;">
