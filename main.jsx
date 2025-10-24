@@ -1,20 +1,17 @@
-/* ===================== EconoLearn - main.jsx (portal dropdown + compact layout) ===================== */
+/* ===================== EconoLearn - main.jsx (Portal Select + compact inputs) ===================== */
 const { useEffect, useMemo, useRef, useState } = React;
 
 /* ----------------- LocalStorage helpers ----------------- */
 const LS_KEY = "econ_mcq_history_v2";
 const store = {
-  get() {
-    try { return JSON.parse(localStorage.getItem(LS_KEY)) ?? []; }
-    catch { return []; }
-  },
+  get() { try { return JSON.parse(localStorage.getItem(LS_KEY)) ?? []; } catch { return []; } },
   set(v) { try { localStorage.setItem(LS_KEY, JSON.stringify(v)); } catch {} }
 };
 
 /* ----------------- Time helpers (rule: 1.2 min per Q) ----------------- */
-const TIME_PER_Q_MIN = 1.2;
-const timeForN = (n) => Math.round(n * TIME_PER_Q_MIN * 60);
-const fmt = (s) => {
+const TIME_PER_Q_MIN = 1.2;                              // 1.2 minutes per question
+const timeForN = (n) => Math.round(n * TIME_PER_Q_MIN * 60); // seconds
+const fmt = (s) => {                                    // HH:MM:SS (or MM:SS if < 1 hour)
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
   const sec = s % 60;
@@ -27,7 +24,7 @@ const fmt = (s) => {
 const shuffle = (arr) => { const a = arr.slice(); for (let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]];} return a; };
 const pickN = (arr, n) => shuffle(arr).slice(0, n);
 
-/* ----------------- Background (Ganesh left) ----------------- */
+/* ----------------- Background (Ganesh left, responsive) ----------------- */
 const Background = () => (
   <>
     <div className="pointer-events-none fixed left-0 top-1/2 -translate-y-1/2
@@ -39,7 +36,7 @@ const Background = () => (
 );
 
 /* ----------------- UI helpers ----------------- */
-const glassCard = "relative rounded-3xl p-6 bg-white/30 backdrop-blur-xl border border-white/40";
+const glassCard = "relative overflow-hidden rounded-3xl p-6 bg-white/30 backdrop-blur-xl border border-white/40";
 const cardWrap  = "relative rounded-3xl p-[1px] bg-gradient-to-br from-rose-200/70 via-red-200/60 to-rose-200/70 shadow-lg shadow-red-200/40";
 const glassBtn  = (extra="") => `px-4 py-2 rounded-lg border border-white/40 bg-white/30 hover:bg-white/40
                                   text-gray-800 backdrop-blur-xl transition shadow-sm hover:shadow
@@ -70,7 +67,7 @@ const Confetti = ({ on }) => {
   return null;
 };
 
-/* ----------------- TopBar ----------------- */
+/* ----------------- TopBar (bigger, 2-tone title) ----------------- */
 const TopBar = ({ onHome, onHistory, onAnalytics, page, mode, timeLeft }) => (
   <header className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b">
     <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -104,92 +101,96 @@ const Progress = ({ i, total }) => {
   );
 };
 
-/* ----------------- FancySelect (portal + scroll + auto flip) ----------------- */
+/* ----------------- FancySelect (PORTAL: no clipping + scroll) ----------------- */
 function FancySelect({ value, onChange, options }) {
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState({ left: 0, top: 0, width: 0, menuH: 240 });
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0, placement: 'bottom' });
   const btnRef = useRef(null);
 
-  const recalc = () => {
+  // compute menu position (flip up/down if needed)
+  const compute = () => {
     if (!btnRef.current) return;
     const r = btnRef.current.getBoundingClientRect();
-    const width = r.width;
-    const maxH = Math.min(260, Math.round(window.innerHeight * 0.6));
     const below = window.innerHeight - r.bottom;
-    const placementBottom = below >= maxH + 10;
-    let top = placementBottom ? (r.bottom + 8) : (r.top - maxH - 8);
-    top = Math.max(8, Math.min(top, window.innerHeight - 8 - maxH));
-    const left = Math.max(8, Math.min(r.left, window.innerWidth - 8 - width));
-    setPos({ left, top, width, menuH: maxH });
+    const menuH = Math.min(260, Math.max(160, Math.ceil(window.innerHeight * 0.5))); // responsive height
+    const placement = below >= menuH ? 'bottom' : 'top';
+    const top = placement === 'bottom' ? r.bottom + 8 : r.top - 8; // we use transformY later
+    setPos({ top, left: r.left, width: r.width, placement, menuH });
   };
 
+  const toggle = () => { compute(); setOpen(v=>!v); };
+
   useEffect(() => {
-    if (!open) return;
-    recalc();
-    const onScrollOrResize = () => recalc();
-    window.addEventListener('resize', onScrollOrResize);
-    window.addEventListener('scroll', onScrollOrResize, true);
-    const onDoc = (e) => { if (btnRef.current && !btnRef.current.contains(e.target)) setOpen(false); };
+    function onDoc(e) {
+      if (!btnRef.current) return;
+      if (!btnRef.current.contains(e.target)) setOpen(false);
+    }
+    function onScroll() { if (open) compute(); }
+    function onResize() { if (open) compute(); }
     document.addEventListener('mousedown', onDoc);
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onResize);
     return () => {
-      window.removeEventListener('resize', onScrollOrResize);
-      window.removeEventListener('scroll', onScrollOrResize, true);
       document.removeEventListener('mousedown', onDoc);
+      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', onResize);
     };
   }, [open]);
 
+  // the portal menu
+  const menu = open ? ReactDOM.createPortal(
+    <ul
+      role="listbox"
+      className="z-[9999] rounded-xl border bg-white/95 backdrop-blur shadow-2xl overflow-y-auto
+                 will-change-transform"
+      style={{
+        position: 'fixed',
+        top: pos.top,
+        left: pos.left,
+        width: pos.width,
+        maxHeight: pos.menuH || 260,
+        WebkitOverflowScrolling: 'touch',
+        transform: `translateY(${pos.placement==='bottom' ? '0px' : `calc(-100% - 4px)`})`
+      }}
+    >
+      {options.map(opt => (
+        <li
+          key={opt}
+          role="option"
+          aria-selected={opt === value}
+          onClick={() => { onChange(opt); setOpen(false); }}
+          className={`px-3 py-2 cursor-pointer hover:bg-teal-50 ${opt===value?'bg-teal-100 text-teal-700 font-medium':''}`}
+        >
+          {opt}
+        </li>
+      ))}
+    </ul>,
+    document.body
+  ) : null;
+
   return (
-    <>
+    <div className="relative">
       <button
         ref={btnRef}
         type="button"
-        onClick={() => setOpen(v=>!v)}
-        className="relative w-full text-left p-2 pr-9 border rounded-lg bg-white/60 backdrop-blur hover:bg-white/70 transition"
+        onClick={toggle}
+        className="w-full text-left p-2 pr-9 border rounded-lg bg-white/60 backdrop-blur hover:bg-white/70 transition"
         aria-haspopup="listbox"
         aria-expanded={open}
       >
         {value}
         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500">▾</span>
       </button>
-
-      {open && ReactDOM.createPortal(
-        <ul
-          role="listbox"
-          style={{
-            position: 'fixed',
-            left: `${pos.left}px`,
-            top: `${pos.top}px`,
-            width: `${pos.width}px`,
-            maxHeight: `${pos.menuH}px`,
-            overflowY: 'auto',
-            WebkitOverflowScrolling: 'touch',
-            overscrollBehavior: 'contain',
-            zIndex: 10000
-          }}
-          className="rounded-xl border bg-white/95 backdrop-blur shadow-xl"
-        >
-          {options.map(opt => (
-            <li
-              key={opt}
-              role="option"
-              aria-selected={opt === value}
-              onClick={() => { onChange(opt); setOpen(false); }}
-              className={`px-3 py-2 cursor-pointer hover:bg-teal-50 ${opt===value?'bg-teal-100 text-teal-700 font-medium':''}`}
-            >
-              {opt}
-            </li>
-          ))}
-        </ul>,
-        document.body
-      )}
-    </>
+      {menu}
+    </div>
   );
 }
 
 /* ====================================================================== */
 const App = () => {
-  const [page, setPage] = useState('home');   // home | quiz | result | history | analytics
-  const [mode, setMode] = useState('practice');
+  /* ---- global state ---- */
+  const [page, setPage] = useState('home');           // home | quiz | result | history | analytics
+  const [mode, setMode] = useState('test');           // default Test
   const [questions, setQuestions] = useState([]);
   const [activeSet, setActiveSet] = useState([]);
   const [chapter, setChapter] = useState('All');
@@ -205,8 +206,9 @@ const App = () => {
 
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
-  const [sortBy, setSortBy] = useState('date_desc');
+  const [sortBy, setSortBy] = useState('date_desc');  // history sort
 
+  /* ---- load questions ---- */
   useEffect(() => {
     fetch('questions.json?v=' + Date.now())
       .then(r => { if(!r.ok) throw new Error('bad'); return r.json(); })
@@ -215,26 +217,31 @@ const App = () => {
       .finally(()=> setLoading(false));
   }, []);
 
+  /* ---- derived ---- */
   const total = activeSet.length;
   const attempted = useMemo(()=>Object.keys(answers).filter(k=>answers[k]!=null).length,[answers]);
   const unattempted = Math.max(0,total-attempted);
   const score = useMemo(()=>activeSet.reduce((s,q,i)=>s+(answers[i]===q.answer?1:0),0),[answers,activeSet]);
 
+  /* ---- timer ---- */
   const stopTimer = ()=>{ if (timer.current){ clearInterval(timer.current); timer.current=null; } };
   const startTimer = (sec)=>{ stopTimer(); setRemaining(sec);
     timer.current=setInterval(()=>{ setRemaining(p=>{ if(p<=1){ clearInterval(timer.current); setPage('result'); return 0; } return p-1; }); }, 1000);
   };
 
+  /* ---- navigation helpers ---- */
   const resetRun = ()=>{ setCurrent(0); setAnswers({}); setMarked({}); setSkipped({}); };
   const startPractice = ()=>{ const s = chapter==='All'?questions:questions.filter(q=>q.chapter===chapter); setActiveSet(s); resetRun(); stopTimer(); setPage('quiz'); };
+
   const startTest = ()=>{ 
     const pool = chapter==='All'?questions:questions.filter(q=>q.chapter===chapter);
     const requestedN = Math.max(1, parseInt(testCount || 1, 10));
-    const n = Math.max(1, Math.min(requestedN, pool.length));
+    const n = Math.max(1, Math.min(requestedN, pool.length));   // clamp to available
     const s = pickN(pool, n);
     setActiveSet(s); resetRun(); startTimer(timeForN(n)); setPage('quiz'); 
   };
 
+  /* ---- persist to history on result ---- */
   useEffect(() => {
     if (page !== 'result' || !total) return;
     const entry = {
@@ -242,13 +249,14 @@ const App = () => {
       timestamp: new Date().toISOString(),
       mode, chapter, total, score,
       percent: total ? Math.round((score/total)*100) : 0,
-      durationSec: mode==='test' ? timeForN(total) : null,
+      durationSec: mode==='test' ? timeForN(total) : null, // consistent with rule
       answers: Array.from({length: total}, (_,i)=>answers[i] ?? null),
       questions: activeSet.map(q=>({chapter:q.chapter, question:q.question, options:q.options, answer:q.answer, source:q.source ?? null}))
     };
     const h = store.get(); h.unshift(entry); store.set(h.slice(0,50));
   }, [page, total, score, answers, activeSet, mode, chapter]);
 
+  /* ----------------- RENDER ----------------- */
   if (loading) {
     return (<>
       <TopBar page={page} mode={mode} timeLeft={remaining} onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
@@ -275,22 +283,23 @@ const App = () => {
         <TopBar page={page} mode={mode} timeLeft={remaining}
                 onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
         <Background/>
-        {/* narrower container */}
-        <main className="relative max-w-5xl mx-auto px-4 py-10">
+        <main className="relative max-w-5xl mx-auto px-4 py-10">{/* narrower card */}
           <section className={cardWrap}>
             <div className={glassCard}>
               <div className="pointer-events-none absolute -top-16 -left-16 w-72 h-72 bg-white/20 rounded-full blur-3xl"></div>
 
+              {/* Big title inside card */}
               <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-gray-900">
                 EconoLearn <span className="font-semibold text-gray-500">— MCQ Practice for CUET PG Economics</span>
               </h2>
               <p className="text-gray-700 mt-2">Practice chapter-wise Economics PYQs with instant feedback.</p>
 
-              <div className="mt-6 grid md:grid-cols-2 gap-4">
+              <div className="mt-6 grid md:grid-cols-[1fr_auto] gap-6 items-start">
                 <div>
                   <label className="text-sm">Chapter Filter</label>
-                  <FancySelect value={chapter} onChange={setChapter} options={chapterList} />
+                  <FancySelect value={chapter} onChange={setChapter} options={chapterList}/>
                 </div>
+
                 <div>
                   <label className="text-sm">Mode</label>
                   <div className="flex gap-4 mt-2">
@@ -305,8 +314,7 @@ const App = () => {
               </div>
 
               {mode==='test' && (
-                // compact, on one line at md+
-                <div className="mt-5 grid md:grid-cols-2 items-end gap-4">
+                <div className="mt-5 flex flex-col md:flex-row md:items-end md:gap-6 gap-4">
                   <div>
                     <label className="text-sm">No. of Questions</label>
                     <input
@@ -315,7 +323,7 @@ const App = () => {
                       max={filteredCount}
                       value={testCount}
                       onChange={e=>setTestCount(e.target.value)}
-                      className="w-24 sm:w-28 p-2 border rounded-lg bg-white/60 backdrop-blur"
+                      className="w-28 md:w-32 p-2 border rounded-lg bg-white/60 backdrop-blur"
                     />
                     <p className="text-xs text-gray-700 mt-1">
                       Available: {filteredCount}
@@ -327,9 +335,10 @@ const App = () => {
                     </p>
                   </div>
 
-                  <div className="justify-self-end">
+                  {/* Time limit on the same row; compact width */}
+                  <div>
                     <label className="text-sm block">Time limit</label>
-                    <div className="p-2 border rounded bg-white/60 backdrop-blur text-sm w-24 sm:w-28 text-center">
+                    <div className="p-2 border rounded bg-white/60 backdrop-blur text-sm w-28 md:w-32 text-center">
                       {fmt(est)}
                     </div>
                   </div>
@@ -338,9 +347,16 @@ const App = () => {
 
               <div className="mt-6 flex gap-3 flex-wrap">
                 {mode==='practice' ? (
-                  <button onClick={startPractice} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Start Practice</button>
+                  <button
+                    onClick={()=>{ const s = chapter==='All'?questions:questions.filter(q=>q.chapter===chapter); setActiveSet(s); setCurrent(0); setAnswers({}); setMarked({}); setSkipped({}); stopTimer(); setPage('quiz'); }}
+                    className={solidBtn("bg-teal-600 hover:bg-teal-700")}
+                  >
+                    Start Practice
+                  </button>
                 ) : (
-                  <button onClick={startTest} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Start Test</button>
+                  <button onClick={startTest} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>
+                    Start Test
+                  </button>
                 )}
                 <button onClick={()=>setPage('history')} className={glassBtn()}>Review Past Results</button>
                 <button onClick={()=>setPage('analytics')} className={glassBtn()}>Analytics</button>
@@ -356,6 +372,7 @@ const App = () => {
   if (page==='quiz') {
     const q = activeSet[current]; if (!q) return null;
 
+    const attemptedCount = attempted;
     return (
       <>
         <TopBar page={page} mode={mode} timeLeft={remaining}
@@ -410,8 +427,8 @@ const App = () => {
                     <div className="flex-1" />
                     <div className="flex items-center gap-4">
                       <div className="text-[13px] text-gray-700 text-right leading-tight">
-                        <div>Attempted: <b>{Object.keys(answers).filter(k=>answers[k]!=null).length}</b></div>
-                        <div className="mt-1">Unattempted: <b>{Math.max(0, activeSet.length - Object.keys(answers).filter(k=>answers[k]!=null).length)}</b></div>
+                        <div>Attempted: <b>{attemptedCount}</b></div>
+                        <div className="mt-1">Unattempted: <b>{unattempted}</b></div>
                       </div>
                       {current < activeSet.length-1 ? (
                         <button onClick={()=>{ if(!answers[current] && !marked[current]) setSkipped(p=>({...p,[current]:true})); setCurrent(c=>c+1); }} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Next</button>
@@ -507,10 +524,10 @@ const App = () => {
 
   /* ---- HISTORY ---- */
   if (page==='history') {
-    const h = store.get() || [];
+    const h = store.get();
     const sorted = [...h].sort((a,b)=>{
-      if (sortBy==='date_desc') return new Date(b.timestamp||0) - new Date(a.timestamp||0);
-      if (sortBy==='date_asc')  return new Date(a.timestamp||0) - new Date(b.timestamp||0);
+      if (sortBy==='date_desc') return new Date(b.timestamp) - new Date(a.timestamp);
+      if (sortBy==='date_asc')  return new Date(a.timestamp) - new Date(b.timestamp);
       if (sortBy==='score_desc') return (b.percent||0) - (a.percent||0);
       if (sortBy==='score_asc')  return (a.percent||0) - (b.percent||0);
       return 0;
@@ -538,14 +555,13 @@ const App = () => {
                 <details key={a.id} className="rounded-xl border bg-white/70 backdrop-blur p-4">
                   <summary className="cursor-pointer flex items-center justify-between">
                     <div>
-                      <div className="font-semibold">{a.timestamp ? new Date(a.timestamp).toLocaleString() : 'Unknown time'} • {a.mode || '—'} • {a.chapter || '—'}</div>
-                      <div className="text-sm text-gray-700">Score: {a.score ?? '—'}/{a.total ?? '—'} ({a.percent ?? 0}%) {a.durationSec?`• Time: ${fmt(a.durationSec)}`:''}</div>
+                      <div className="font-semibold">{new Date(a.timestamp).toLocaleString()} • {a.mode} • {a.chapter}</div>
+                      <div className="text-sm text-gray-700">Score: {a.score}/{a.total} ({a.percent}%) {a.durationSec?`• Time: ${fmt(a.durationSec)}`:''}</div>
                     </div>
                   </summary>
                   <div className="mt-3 space-y-2">
-                    {(Array.isArray(a.questions)?a.questions:[]).map((q,i)=>{
-                      const your=(Array.isArray(a.answers)?a.answers:[])[i];
-                      const ok=your===q.answer;
+                    {a.questions.map((q,i)=>{
+                      const your=a.answers[i]; const ok=your===q.answer;
                       return (
                         <div key={i} className="p-3 border rounded bg-white/60">
                           <div className="flex justify-between">
@@ -569,23 +585,14 @@ const App = () => {
 
   /* ---- ANALYTICS ---- */
   if (page==='analytics') {
-    let rows = [];
-    try {
-      const hist = store.get() || [];
-      const agg = {};
-      for (const at of hist) {
-        if (!at || !Array.isArray(at.questions)) continue;
-        const ans = Array.isArray(at.answers) ? at.answers : [];
-        at.questions.forEach((q,i)=>{
-          const ch=q?.chapter || 'Unknown';
-          if(!agg[ch]) agg[ch]={correct:0,total:0};
-          agg[ch].total++;
-          if(ans[i]===q.answer) agg[ch].correct++;
-        });
-      }
-      rows = Object.entries(agg).map(([ch,{correct,total}])=>({ch,correct,total,pct: total?Math.round(correct/total*100):0}))
-            .sort((a,b)=>a.ch.localeCompare(b.ch));
-    } catch {}
+    const hist = store.get();
+    const agg = {};
+    hist.forEach(at => at.questions.forEach((q,i)=>{
+      const ch=q.chapter||'Unknown'; if(!agg[ch]) agg[ch]={correct:0,total:0};
+      agg[ch].total++; if(at.answers[i]===q.answer) agg[ch].correct++;
+    }));
+    const rows = Object.entries(agg).map(([ch,{correct,total}])=>({ch,correct,total,pct: total?Math.round(correct/total*100):0}))
+                                   .sort((a,b)=>a.ch.localeCompare(b.ch));
 
     return (
       <>
