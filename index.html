@@ -1,67 +1,277 @@
+<!-- FILE: index.html -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>EconoLearn – MCQ Practice for CUET PG Economics</title>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1"
+  />
+  <title>EconoLearn — CUET PG Economics</title>
 
-  <!-- PWA colors -->
-  <meta name="theme-color" content="#f9fafb" />
+  <!-- Tailwind (CDN) -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
 
-  <!-- Manifest & icons -->
-  <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
-  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png" />
-  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+  <!-- Prevent odd cache mismatches after hard refresh on GitHub Pages -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
 
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: { poppins: ['Poppins', 'sans-serif'] },
-          colors: { primary: '#0ea5a4' }
-        }
-      }
-    }
-  </script>
-
-  <!-- Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&display=swap" rel="stylesheet">
-
-  <!-- Small global styles -->
-  <style>
-    html, body { height: 100%; }
-    body { font-family: 'Poppins', sans-serif; background: #fff; color: #1f2937; }
-    @keyframes slide { from {opacity:0; transform: translateY(6px);} to {opacity:1; transform: translateY(0);} }
-  </style>
-
-  <!-- React UMD + Babel (only 'react' preset) -->
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <!-- React + Babel (only “react” preset as you wanted) -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-  <!-- jsPDF (optional, for future export) -->
-  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 </head>
+<body class="min-h-screen bg-gradient-to-b from-rose-50 to-rose-100 text-slate-800">
+  <!-- Top nav -->
+  <header class="w-full sticky top-0 z-40 bg-white/70 backdrop-blur border-b">
+    <div class="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
+      <div class="font-extrabold tracking-tight text-lg sm:text-xl">
+        <span class="text-slate-900">EconoLearn</span>
+        <span class="text-slate-400"> — CUET PG Economics</span>
+      </div>
+      <nav class="flex gap-2">
+        <a href="#/" class="px-3 py-1 rounded-md hover:bg-slate-100">Home</a>
+        <a href="#/results" class="px-3 py-1 rounded-md hover:bg-slate-100">Review Past Results</a>
+        <a href="#/analytics" class="px-3 py-1 rounded-md hover:bg-slate-100">Analytics</a>
+      </nav>
+    </div>
+  </header>
 
-<body>
-  <!-- App root -->
-  <div class="min-h-screen">
-    <div id="root"></div>
-  </div>
+  <main id="root" class="mx-auto max-w-6xl px-4 py-8"></main>
 
-  <!-- Register service worker for PWA/offline -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./service-worker.js').catch(() => {});
-      });
+  <script type="text/babel" data-presets="react">
+    const { useEffect, useMemo, useState } = React;
+
+    /* ----------------------------- Helpers ----------------------------- */
+    const glassCard =
+      "rounded-[28px] shadow-xl border border-rose-200/60 bg-gradient-to-br from-rose-100/70 to-rose-200/60 backdrop-blur p-6 sm:p-8";
+
+    function Title() {
+      // Single colored title that matches the card (fix for #3)
+      return (
+        <div className="mb-6">
+          <div className="inline-flex items-center gap-3 rounded-full border border-rose-300/70 bg-white/60 px-5 py-2.5 shadow-sm">
+            <span className="text-3xl sm:text-4xl font-extrabold tracking-tight
+                             text-rose-700">
+              EconoLearn
+            </span>
+            <span className="text-lg sm:text-xl font-semibold text-slate-700">
+              — MCQ Practice for CUET PG Economics
+            </span>
+          </div>
+          <p className="mt-3 text-slate-600">
+            Practice chapter-wise Economics PYQs with instant feedback.
+          </p>
+        </div>
+      );
     }
-  </script>
 
-  <!-- Your App -->
-  <script type="text/babel" data-presets="react" src="./main.jsx"></script>
+    /* --------------------------- Fake data ---------------------------- */
+    // Minimal chapters list; replace with your real list if needed
+    const CHAPTERS = ["All","Theory of Consumer Behaviour","Theory of Demand & Elasticity","Theory of Production & Cost","Market Structures","Factor Pricing & Distribution","Welfare Economics"];
+
+    /* ---------------------------- Router ------------------------------ */
+    // Hash router prevents GitHub Pages refresh issues (#4)
+    function useHashRoute() {
+      const [route, setRoute] = useState(() => location.hash.replace("#", "") || "/");
+      useEffect(() => {
+        const onHash = () => setRoute(location.hash.replace("#", "") || "/");
+        window.addEventListener("hashchange", onHash);
+        return () => window.removeEventListener("hashchange", onHash);
+      }, []);
+      return [route, (to) => { if (to !== route) location.hash = to; }];
+    }
+
+    /* ------------------------------ Views ----------------------------- */
+    function Home({ goToStart, goToResults, goToAnalytics }) {
+      const [chapter, setChapter] = useState("All");
+      const [mode, setMode] = useState("practice");
+
+      return (
+        // SINGLE CARD ONLY — removes the “two rectangles” (#1 & #2)
+        <section className={glassCard}>
+          <Title />
+
+          <div className="grid sm:grid-cols-3 gap-4 items-end">
+            <label className="sm:col-span-2">
+              <span className="block text-sm font-medium text-slate-700 mb-1">Chapter Filter</span>
+              <select
+                className="w-full rounded-md"
+                value={chapter}
+                onChange={(e) => setChapter(e.target.value)}
+              >
+                {CHAPTERS.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </label>
+
+            <fieldset className="flex items-center gap-4">
+              <legend className="text-sm font-medium text-slate-700">Mode</legend>
+              <label className="inline-flex items-center gap-2">
+                <input type="radio" name="mode" value="practice"
+                  checked={mode === "practice"}
+                  onChange={() => setMode("practice")} />
+                <span>Practice</span>
+              </label>
+              <label className="inline-flex items-center gap-2">
+                <input type="radio" name="mode" value="test"
+                  checked={mode === "test"}
+                  onChange={() => setMode("test")} />
+                <span>Test</span>
+              </label>
+            </fieldset>
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-3">
+            <button
+              className="px-4 py-2 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 active:scale-[.99]"
+              onClick={() => goToStart({ chapter, mode })}
+            >
+              Start Practice
+            </button>
+            <button
+              className="px-4 py-2 rounded-md bg-white/70 text-slate-800 border hover:bg-white"
+              onClick={goToResults}
+            >
+              Review Past Results
+            </button>
+            <button
+              className="px-4 py-2 rounded-md bg-white/70 text-slate-800 border hover:bg-white"
+              onClick={goToAnalytics}
+            >
+              Analytics
+            </button>
+          </div>
+        </section>
+      );
+    }
+
+    function Start({ initial, goHome }) {
+      // Stub view that proves navigation works. Wire to your quiz engine.
+      const timer = Math.ceil(10 * 1.2); // demo: 10 Q → 12 min
+      return (
+        <section className={glassCard}>
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">Starting: {initial.mode.toUpperCase()}</h2>
+          <p className="text-slate-700 mb-4">Chapter: <b>{initial.chapter}</b> • Time: <b>{String(timer).padStart(2,"0")}:00</b></p>
+          <button className="px-4 py-2 rounded-md bg-slate-800 text-white" onClick={goHome}>
+            Back to Home
+          </button>
+        </section>
+      );
+    }
+
+    function PastResults({ goRetake, goPractice, goHome }) {
+      // Read results; show buttons that DO NOT navigate to home accidentally (#5, #6)
+      const stored = JSON.parse(localStorage.getItem("econolearn_results") || "[]");
+      return (
+        <section className="space-y-6">
+          <h2 className="text-2xl font-extrabold">Past Results</h2>
+
+          {stored.length === 0 && (
+            <p className="text-slate-600">No results yet.</p>
+          )}
+
+          {stored.map((r, i) => (
+            <div key={i} className="rounded-xl border bg-white p-4 shadow-sm flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="font-semibold">
+                  {new Date(r.at).toLocaleString()} • {r.mode} • {r.chapter}
+                </div>
+                <div className="text-sm text-slate-600">
+                  Score: {r.score}/{r.total} ({Math.round((r.score/r.total)*100)}%) • Time: {r.time}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  className="px-3 py-1.5 rounded-md border bg-white hover:bg-slate-50"
+                  onClick={() => goPractice(r.chapter)}
+                >
+                  Practice this chapter
+                </button>
+                <button
+                  className="px-3 py-1.5 rounded-md bg-emerald-600 text-white hover:bg-emerald-700"
+                  onClick={() => goRetake(r.chapter, r.total)}
+                >
+                  Retake test ({r.total})
+                </button>
+              </div>
+            </div>
+          ))}
+
+          <button className="px-4 py-2 rounded-md bg-slate-800 text-white" onClick={goHome}>
+            Home
+          </button>
+        </section>
+      );
+    }
+
+    function Analytics({ goHome }) {
+      return (
+        <section className={glassCard}>
+          <h2 className="text-2xl font-extrabold">Analytics</h2>
+          <p className="text-slate-600">Your analytics will appear here.</p>
+          <div className="mt-4">
+            <button className="px-4 py-2 rounded-md bg-slate-800 text-white" onClick={goHome}>
+              Home
+            </button>
+          </div>
+        </section>
+      );
+    }
+
+    /* ---------------------------- App shell --------------------------- */
+    function App() {
+      const [route, nav] = useHashRoute();
+      const [startArgs, setStartArgs] = useState(null);
+
+      // Programmatic nav (prevents accidental full-page reloads)
+      const goHome = () => nav("/");                         // home
+      const goToResults = () => nav("/results");             // list
+      const goToAnalytics = () => nav("/analytics");         // analytics
+      const goToStart = (params) => { setStartArgs(params); nav("/start"); };
+
+      // Buttons inside Past Results
+      const goPractice = (chapter) => goToStart({ chapter, mode: "practice" });
+      const goRetake = (chapter, total=10) => goToStart({ chapter, mode: "test", total });
+
+      useEffect(() => {
+        // Seed a sample result so your screenshot buttons work
+        if (!localStorage.getItem("econolearn_results")) {
+          localStorage.setItem("econolearn_results", JSON.stringify([{
+            at: Date.now(),
+            chapter: "All",
+            mode: "test",
+            score: 0, total: 10, time: "12:00"
+          }]));
+        }
+      }, []);
+
+      return (
+        <div className="grid grid-cols-1 gap-8">
+          {route === "/" && (
+            <Home
+              goToStart={goToStart}
+              goToResults={goToResults}
+              goToAnalytics={goToAnalytics}
+            />
+          )}
+
+          {route === "/start" && (
+            <Start initial={startArgs || {chapter:"All", mode:"practice"}} goHome={goHome} />
+          )}
+
+          {route === "/results" && (
+            <PastResults goRetake={goRetake} goPractice={goPractice} goHome={goHome} />
+          )}
+
+          {route === "/analytics" && (
+            <Analytics goHome={goHome} />
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
 </body>
 </html>
