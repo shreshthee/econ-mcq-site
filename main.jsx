@@ -1,3 +1,4 @@
+
 const { useEffect, useMemo, useRef, useState } = React;
 
 /* ------------------- Storage ------------------- */
@@ -86,7 +87,7 @@ function App(){
       .finally(()=> setLoading(false));
   },[]);
 
-  // derived helpers (no hooks inside pages)
+  // derived helpers
   const total = activeSet.length;
   const attemptedCount = () => Object.keys(answers).filter(k=>answers[k]!=null).length;
   const unattemptedCount = () => Math.max(0, total - attemptedCount());
@@ -135,11 +136,11 @@ function App(){
   if(err){
     return <>
       <TopBar page={page} mode={mode} timeLeft={remaining} onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
-      <main className="max-w-6xl mx-auto px-4 py-10 text-center text-red-600">{err}</main>
+    <main className="max-w-6xl mx-auto px-4 py-10 text-center text-red-600">{err}</main>
     </>;
   }
 
-  /* ---------------- Home ---------------- */
+  /* ---------------- Home (rectified) ---------------- */
   if(page==='home'){
     const chapters = ['All', ...new Set(questions.map(q=>q.chapter).filter(Boolean))];
     const filteredCount = chapter==='All'?questions.length:questions.filter(q=>q.chapter===chapter).length;
@@ -152,66 +153,65 @@ function App(){
               onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
       <Background/>
 
-      {/* Hero */}
+      {/* Hero (single, centered brand) */}
       <section className="max-w-6xl mx-auto px-4 pt-6">
         <div className="text-center mb-3">
-          <div className="text-3xl md:text-4xl font-extrabold text-gray-900">EconoLearn</div>
-          <div className="text-lg md:text-xl text-gray-500">— CUET PG Economics</div>
+          <div className="text-3xl md:text-4xl font-extrabold text-rose-400">EconoLearn</div>
         </div>
       </section>
 
-      {/* Card */}
+      {/* Single glass card (no gradient wrapper) */}
       <main className="max-w-5xl mx-auto px-4 pb-10">
-        <div className="relative rounded-3xl p-[1px] bg-gradient-to-br from-rose-200/70 via-red-200/60 to-rose-200/70 shadow-lg">
-          <div className="rounded-3xl p-6 bg-white/70 backdrop-blur border border-white/60">
-            <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900">EconoLearn — MCQ Practice for CUET PG Economics</h2>
-            <p className="text-gray-700 mt-2">Practice chapter-wise Economics PYQs with instant feedback.</p>
+        <div className="rounded-3xl p-6 bg-white/70 backdrop-blur border border-white/60 shadow-lg">
+          <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900">
+            MCQ Practice for CUET PG Economics
+          </h2>
+          <p className="text-gray-700 mt-2">Practice chapter-wise Economics PYQs with instant feedback.</p>
 
-            <div className="mt-6 grid md:grid-cols-2 gap-6">
-              <div>
-                <label className="text-sm block mb-1">Chapter Filter</label>
-                <select value={chapter} onChange={e=>setChapter(e.target.value)}
-                        className="w-full p-2 pr-8 border rounded-lg bg-white focus:outline-none">
-                  {chapters.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-sm block mb-1">Mode</label>
-                <div className="flex items-center gap-6">
-                  <label className="flex items-center gap-2"><input type="radio" checked={mode==='practice'} onChange={()=>setMode('practice')} /> Practice</label>
-                  <label className="flex items-center gap-2"><input type="radio" checked={mode==='test'} onChange={()=>setMode('test')} /> Test</label>
-                </div>
-              </div>
+          <div className="mt-6 grid md:grid-cols-2 gap-6">
+            <div>
+              <label className="text-sm block mb-1">Chapter Filter</label>
+              <select value={chapter} onChange={e=>setChapter(e.target.value)}
+                      className="w-full p-2 pr-8 border rounded-lg bg-white focus:outline-none">
+                {chapters.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
             </div>
 
-            {mode==='test' && (
-              <div className="mt-5 grid md:grid-cols-[1fr,220px] gap-6 items-end">
-                <div>
-                  <label className="text-sm block mb-1">No. of Questions</label>
-                  <input type="number" min="1" max={filteredCount} value={testCount}
-                         onChange={e=>setTestCount(e.target.value)}
-                         className="w-28 p-2 border rounded-lg bg-white"/>
-                  <p className="text-xs text-gray-700 mt-1">
-                    Available: {filteredCount}{req>filteredCount && <span className="ml-2 text-rose-600 font-medium">(Requested {req}, using {effectiveN})</span>}
-                  </p>
-                </div>
-
-                <div className="justify-self-end text-right">
-                  <label className="text-sm block mb-1">Time limit</label>
-                  <div className="p-2 border rounded bg-white text-sm w-28 text-center">{fmt(est)}</div>
-                </div>
+            <div>
+              <label className="text-sm block mb-1">Mode</label>
+              <div className="flex items-center gap-6">
+                <label className="flex items-center gap-2"><input type="radio" checked={mode==='practice'} onChange={()=>setMode('practice')} /> Practice</label>
+                <label className="flex items-center gap-2"><input type="radio" checked={mode==='test'} onChange={()=>setMode('test')} /> Test</label>
               </div>
-            )}
-
-            <div className="mt-6 flex gap-3 flex-wrap">
-              {mode==='practice'
-                ? <button onClick={startPractice} className="px-5 py-2 rounded-lg text-white bg-brand hover:brightness-95">Start Practice</button>
-                : <button onClick={startTest} className="px-5 py-2 rounded-lg text-white bg-brand hover:brightness-95">Start Test</button>
-              }
-              <button onClick={()=>setPage('history')} className="px-5 py-2 rounded-lg border bg-white hover:bg-gray-50">Review Past Results</button>
-              <button onClick={()=>setPage('analytics')} className="px-5 py-2 rounded-lg border bg-white hover:bg-gray-50">Analytics</button>
             </div>
+          </div>
+
+          {mode==='test' && (
+            <div className="mt-5 grid md:grid-cols-[1fr,220px] gap-6 items-end">
+              <div>
+                <label className="text-sm block mb-1">No. of Questions</label>
+                <input type="number" min="1" max={filteredCount} value={testCount}
+                       onChange={e=>setTestCount(e.target.value)}
+                       className="w-28 p-2 border rounded-lg bg-white"/>
+                <p className="text-xs text-gray-700 mt-1">
+                  Available: {filteredCount}{req>filteredCount && <span className="ml-2 text-rose-600 font-medium">(Requested {req}, using {effectiveN})</span>}
+                </p>
+              </div>
+
+              <div className="justify-self-end text-right">
+                <label className="text-sm block mb-1">Time limit</label>
+                <div className="p-2 border rounded bg-white text-sm w-28 text-center">{fmt(est)}</div>
+              </div>
+            </div>
+          )}
+
+          <div className="mt-6 flex gap-3 flex-wrap">
+            {mode==='practice'
+              ? <button onClick={startPractice} className="px-5 py-2 rounded-lg text-white bg-brand hover:brightness-95">Start Practice</button>
+              : <button onClick={startTest} className="px-5 py-2 rounded-lg text-white bg-brand hover:brightness-95">Start Test</button>
+            }
+            <button onClick={()=>setPage('history')} className="px-5 py-2 rounded-lg border bg-white hover:bg-gray-50">Review Past Results</button>
+            <button onClick={()=>setPage('analytics')} className="px-5 py-2 rounded-lg border bg-white hover:bg-gray-50">Analytics</button>
           </div>
         </div>
       </main>
@@ -286,7 +286,6 @@ function App(){
             </section>
           </div>
 
-          {/* Palette simplified */}
           <aside className="lg:sticky lg:top-[72px]">
             <div className="rounded-2xl p-4 bg-white/70 backdrop-blur border border-white/60 shadow">
               <div className="flex items-center justify-between mb-2">
