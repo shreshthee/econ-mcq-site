@@ -1,27 +1,14 @@
 {
-  "name": "EconoLearn – CUET PG Economics",
+  "name": "EconoLearn",
   "short_name": "EconoLearn",
-  "start_url": "./",
-  "scope": "./",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#f9fafb",
-  "description": "Chapter-wise MCQ practice for CUET PG Economics with timer, review, and analytics.",
+  "theme_color": "#fce7ef",
+  "description": "Chapter-wise MCQ Practice for CUET PG Economics with timer and analytics",
   "icons": [
-    {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    },
-    {
-      "src": "apple-touch-icon.png",
-      "sizes": "180x180",
-      "type": "image/png"
-    }
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
   ]
 }
