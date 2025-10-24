@@ -1,4 +1,4 @@
-/* ===== EconoLearn – main.jsx (polish + fixes: mark button, legend, history, alignment) ===== */
+/* ===== EconoLearn – main.jsx (UI aligned: No. of Q + Time limit on one row) ===== */
 const { useEffect, useMemo, useRef, useState } = React;
 
 /* ---------- Storage ---------- */
@@ -30,8 +30,8 @@ const cardWrap  = "relative rounded-3xl p-[1px] bg-gradient-to-br from-rose-100 
 const glassBtn  = "ripple touch-press px-4 py-2 rounded-lg border border-white/60 bg-white/70 hover:bg-white text-gray-800 backdrop-blur transition shadow-sm hover:shadow hover:-translate-y-[1px]";
 const solidBtn  = "ripple touch-press px-5 py-2 rounded-lg bg-teal-600 text-white shadow-md hover:brightness-[.98] hover:-translate-y-[1px] transition";
 
-/* ---------- Ripple CSS (global) ---------- */
-const injectRippleCSS = () => {
+/* ---------- Ripple CSS ---------- */
+(function injectRippleCSS(){
   if (document.getElementById('ripple-style')) return;
   const style = document.createElement('style');
   style.id = 'ripple-style';
@@ -43,8 +43,7 @@ const injectRippleCSS = () => {
     @keyframes slide{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
   `;
   document.head.appendChild(style);
-};
-injectRippleCSS();
+})();
 
 /* ---------- Header & Hero ---------- */
 const Header = ({page,onHome,onHistory,onAnalytics}) => (
@@ -69,7 +68,7 @@ const Hero = () => (
   <div className="text-center my-6">
     <div className="text-3xl md:text-4xl font-extrabold text-rose-400">EconoLearn</div>
     <div className="mt-3 inline-block w-[160px] h-[160px] sm:w-[200px] sm:h-[200px]
-                    bg-[url('./ganesh.png')] bg-contain bg-no-repeat bg-center opacity-70"></div>
+                    bg-[url('./ganesh.png')] bg-contain bg-no-repeat bg-center opacity-80"></div>
   </div>
 );
 
@@ -116,7 +115,6 @@ const Progress = ({i,total})=>{
     <div className="bg-teal-500 h-2 rounded-full transition-all" style={{width:`${pct}%`}}/>
   </div>;
 };
-
 const Legend = () => (
   <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1 text-xs mt-3 text-gray-700">
     <div className="flex items-center gap-2"><span className="w-3 h-3 rounded bg-white border border-gray-300"></span>Unattempted</div>
@@ -189,7 +187,6 @@ const App = () => {
     const h=store.get(); h.unshift(entry); store.set(h.slice(0,50));
   },[page,total,score,answers,activeSet,mode,chapter]);
 
-  /* Renders */
   if(loading) return (<><Header page={page}/><main className="max-w-6xl mx-auto px-4 py-10 text-center text-gray-500">Loading…</main></>);
   if(err) return (<><Header page={page}/><main className="max-w-6xl mx-auto px-4 py-10 text-center text-red-600">{err}</main></>);
 
@@ -235,19 +232,21 @@ const App = () => {
               </div>
 
               {mode==='test' && (
-                <div className="mt-4 grid md:grid-cols-2 gap-4 items-end">
-                  <div>
-                    <label className="text-sm">No. of Questions</label>
-                    <input type="number" min="1" max={filteredCount} value={testCount}
-                           onChange={e=>setTestCount(e.target.value)}
-                           className="ripple w-40 p-2 border rounded-lg bg-white/70"/>
-                    <p className="text-xs text-gray-700 mt-1">
-                      Available: {filteredCount}{req>filteredCount && <span className="ml-2 text-rose-600">(Requested {req}, using {effectiveN})</span>}
-                    </p>
-                  </div>
-                  <div className="md:ml-auto justify-self-end">
-                    <label className="text-sm block">Time limit</label>
-                    <div className="p-2 border rounded bg-white/70 text-sm w-40 text-center">{fmt(est)}</div>
+                <div className="mt-4 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+                  <div className="flex items-end gap-4">
+                    <div>
+                      <label className="text-sm">No. of Questions</label>
+                      <input type="number" min="1" max={filteredCount} value={testCount}
+                            onChange={e=>setTestCount(e.target.value)}
+                            className="ripple w-32 p-2 border rounded-lg bg-white/70"/>
+                      <p className="text-xs text-gray-700 mt-1">
+                        Available: {filteredCount}{req>filteredCount && <span className="ml-2 text-rose-600">(Requested {req}, using {effectiveN})</span>}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm block">Time limit</label>
+                      <div className="p-2 border rounded bg-white/70 text-sm w-32 text-center">{fmt(est)}</div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -292,7 +291,6 @@ const App = () => {
 
               <section className={cardWrap}>
                 <div className={glassCard + " animate-[slide_.35s_ease_both]"}>
-                  {/* Attempted/Unattempted chip */}
                   <div className="absolute right-4 top-4 text-xs text-gray-700 bg-white/70 border border-white/60 rounded-md px-2 py-1">
                     Attempted: <b>{attemptedCount}</b> • Unattempted: <b>{unattempted}</b>
                   </div>
@@ -361,7 +359,13 @@ const App = () => {
                     return <button key={i} onClick={()=>{ if(!answers[current]&&!marked[current]) setSkipped(p=>({...p,[current]:true})); setCurrent(i);}} className={`${base} ${color} ${ring}`}>{i+1}</button>;
                   })}
                 </div>
-                <Legend />
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1 text-xs mt-3 text-gray-700">
+                  <div className="flex items-center gap-2"><span className="w-3 h-3 rounded bg-white border border-gray-300"></span>Unattempted</div>
+                  <div className="flex items-center gap-2"><span className="w-3 h-3 rounded bg-[#32CD32] border border-green-600"></span>Attempted</div>
+                  <div className="flex items-center gap-2"><span className="w-3 h-3 rounded bg-violet-500 border border-violet-600"></span>Marked</div>
+                  <div className="flex items-center gap-2"><span className="w-3 h-3 rounded bg-blue-500 border border-blue-600"></span>Attempted + Marked</div>
+                  <div className="flex items-center gap-2"><span className="w-3 h-3 rounded bg-red-500 border border-red-600"></span>Skipped</div>
+                </div>
                 <div className="mt-4">
                   <button className={solidBtn.replace('bg-teal-600','bg-green-600')+" w-full"} onClick={()=>{stopTimer(); setPage('result');}}>Submit Test</button>
                 </div>
@@ -406,7 +410,7 @@ const App = () => {
     );
   }
 
-  /* HISTORY (polished) */
+  /* HISTORY */
   if(page==='history'){
     const h=store.get();
     const sorted=[...h].sort((a,b)=>sortBy==='date_desc'? new Date(b.timestamp)-new Date(a.timestamp)
