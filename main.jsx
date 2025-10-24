@@ -1,5 +1,13 @@
-/* ===================== EconoLearn - main.jsx (Portal Select + compact inputs) ===================== */
+/* ===================== EconoLearn - main.jsx (SmartSelect + compact UI + analytics fix) ===================== */
 const { useEffect, useMemo, useRef, useState } = React;
+
+/* ----------------- Config ----------------- */
+const FORCE_CUSTOM_SELECT = false; // set true to force custom dropdown also on touch devices
+
+/* ----------------- Device helpers ----------------- */
+const isTouchDevice =
+  (typeof window !== 'undefined') &&
+  ('ontouchstart' in window || navigator.maxTouchPoints > 0);
 
 /* ----------------- LocalStorage helpers ----------------- */
 const LS_KEY = "econ_mcq_history_v2";
@@ -9,9 +17,9 @@ const store = {
 };
 
 /* ----------------- Time helpers (rule: 1.2 min per Q) ----------------- */
-const TIME_PER_Q_MIN = 1.2;                              // 1.2 minutes per question
+const TIME_PER_Q_MIN = 1.2;
 const timeForN = (n) => Math.round(n * TIME_PER_Q_MIN * 60); // seconds
-const fmt = (s) => {                                    // HH:MM:SS (or MM:SS if < 1 hour)
+const fmt = (s) => {
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
   const sec = s % 60;
@@ -67,7 +75,7 @@ const Confetti = ({ on }) => {
   return null;
 };
 
-/* ----------------- TopBar (bigger, 2-tone title) ----------------- */
+/* ----------------- TopBar ----------------- */
 const TopBar = ({ onHome, onHistory, onAnalytics, page, mode, timeLeft }) => (
   <header className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b">
     <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -91,67 +99,69 @@ const TopBar = ({ onHome, onHistory, onAnalytics, page, mode, timeLeft }) => (
   </header>
 );
 
-/* ----------------- Progress ----------------- */
-const Progress = ({ i, total }) => {
-  const pct = total ? Math.round(((i+1)/total)*100) : 0;
-  return (
-    <div className="w-full bg-white/40 backdrop-blur h-2 rounded-full shadow-inner">
-      <div className="bg-teal-500 h-2 rounded-full transition-all" style={{width:`${pct}%`}} />
-    </div>
-  );
-};
+/* ----------------- SmartSelect -----------------
+   • Touch devices → native <select> (perfect scroll)
+   • Desktop → portal dropdown outside the card (no clipping)
+--------------------------------------------------*/
+function SmartSelect({ value, onChange, options }) {
+  const useNative = isTouchDevice && !FORCE_CUSTOM_SELECT;
 
-/* ----------------- FancySelect (PORTAL: no clipping + scroll) ----------------- */
-function FancySelect({ value, onChange, options }) {
+  // Native select path (touch)
+  if (useNative) {
+    return (
+      <select
+        value={value}
+        onChange={(e)=>onChange(e.target.value)}
+        className="w-full p-2 border rounded-lg bg-white/60 backdrop-blur hover:bg-white/70"
+      >
+        {options.map((opt)=>(
+          <option key={opt} value={opt}>{opt}</option>
+        ))}
+      </select>
+    );
+  }
+
+  // Desktop path (portal)
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState({ top: 0, left: 0, width: 0, placement: 'bottom' });
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0, menuH: 260, placement: 'bottom' });
   const btnRef = useRef(null);
 
-  // compute menu position (flip up/down if needed)
   const compute = () => {
     if (!btnRef.current) return;
     const r = btnRef.current.getBoundingClientRect();
     const below = window.innerHeight - r.bottom;
-    const menuH = Math.min(260, Math.max(160, Math.ceil(window.innerHeight * 0.5))); // responsive height
-    const placement = below >= menuH ? 'bottom' : 'top';
-    const top = placement === 'bottom' ? r.bottom + 8 : r.top - 8; // we use transformY later
-    setPos({ top, left: r.left, width: r.width, placement, menuH });
+    const menuH = Math.min(320, Math.max(200, Math.floor(window.innerHeight * 0.6)));
+    const placement = (below >= menuH ? 'bottom' : 'top');
+    const top = placement === 'bottom' ? r.bottom + 6 : r.top - 6;
+    setPos({ top, left: r.left, width: r.width, menuH, placement });
   };
 
-  const toggle = () => { compute(); setOpen(v=>!v); };
-
   useEffect(() => {
-    function onDoc(e) {
+    const close = (e) => {
       if (!btnRef.current) return;
       if (!btnRef.current.contains(e.target)) setOpen(false);
-    }
-    function onScroll() { if (open) compute(); }
-    function onResize() { if (open) compute(); }
-    document.addEventListener('mousedown', onDoc);
-    window.addEventListener('scroll', onScroll, true);
-    window.addEventListener('resize', onResize);
+    };
+    const recalc = () => open && compute();
+    document.addEventListener('mousedown', close);
+    window.addEventListener('resize', recalc);
+    window.addEventListener('scroll', recalc, true);
     return () => {
-      document.removeEventListener('mousedown', onDoc);
-      window.removeEventListener('scroll', onScroll, true);
-      window.removeEventListener('resize', onResize);
+      document.removeEventListener('mousedown', close);
+      window.removeEventListener('resize', recalc);
+      window.removeEventListener('scroll', recalc, true);
     };
   }, [open]);
 
-  // the portal menu
   const menu = open ? ReactDOM.createPortal(
     <ul
-      role="listbox"
-      className="z-[9999] rounded-xl border bg-white/95 backdrop-blur shadow-2xl overflow-y-auto
-                 will-change-transform"
+      className="fixed z-[9999] bg-white shadow-xl rounded-xl border overflow-auto"
       style={{
-        position: 'fixed',
-        top: pos.top,
+        top: pos.placement === 'bottom' ? pos.top : (pos.top - pos.menuH),
         left: pos.left,
         width: pos.width,
-        maxHeight: pos.menuH || 260,
-        WebkitOverflowScrolling: 'touch',
-        transform: `translateY(${pos.placement==='bottom' ? '0px' : `calc(-100% - 4px)`})`
+        maxHeight: pos.menuH
       }}
+      role="listbox"
     >
       {options.map(opt => (
         <li
@@ -164,16 +174,15 @@ function FancySelect({ value, onChange, options }) {
           {opt}
         </li>
       ))}
-    </ul>,
-    document.body
-  ) : null;
+    </ul>
+    , document.body) : null;
 
   return (
     <div className="relative">
       <button
         ref={btnRef}
         type="button"
-        onClick={toggle}
+        onClick={() => { compute(); setOpen(v=>!v); }}
         className="w-full text-left p-2 pr-9 border rounded-lg bg-white/60 backdrop-blur hover:bg-white/70 transition"
         aria-haspopup="listbox"
         aria-expanded={open}
@@ -186,11 +195,21 @@ function FancySelect({ value, onChange, options }) {
   );
 }
 
+/* ----------------- Progress ----------------- */
+const Progress = ({ i, total }) => {
+  const pct = total ? Math.round(((i+1)/total)*100) : 0;
+  return (
+    <div className="w-full bg-white/40 backdrop-blur h-2 rounded-full shadow-inner">
+      <div className="bg-teal-500 h-2 rounded-full transition-all" style={{width:`${pct}%`}} />
+    </div>
+  );
+};
+
 /* ====================================================================== */
 const App = () => {
   /* ---- global state ---- */
   const [page, setPage] = useState('home');           // home | quiz | result | history | analytics
-  const [mode, setMode] = useState('test');           // default Test
+  const [mode, setMode] = useState('practice');       // practice | test
   const [questions, setQuestions] = useState([]);
   const [activeSet, setActiveSet] = useState([]);
   const [chapter, setChapter] = useState('All');
@@ -249,7 +268,7 @@ const App = () => {
       timestamp: new Date().toISOString(),
       mode, chapter, total, score,
       percent: total ? Math.round((score/total)*100) : 0,
-      durationSec: mode==='test' ? timeForN(total) : null, // consistent with rule
+      durationSec: mode==='test' ? timeForN(total) : null,
       answers: Array.from({length: total}, (_,i)=>answers[i] ?? null),
       questions: activeSet.map(q=>({chapter:q.chapter, question:q.question, options:q.options, answer:q.answer, source:q.source ?? null}))
     };
@@ -259,13 +278,15 @@ const App = () => {
   /* ----------------- RENDER ----------------- */
   if (loading) {
     return (<>
-      <TopBar page={page} mode={mode} timeLeft={remaining} onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
+      <TopBar page={page} mode={mode} timeLeft={remaining}
+              onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
       <main className="max-w-6xl mx-auto px-4 py-10 text-center text-gray-500">Loading questions…</main>
     </>);
   }
   if (err) {
     return (<>
-      <TopBar page={page} mode={mode} timeLeft={remaining} onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
+      <TopBar page={page} mode={mode} timeLeft={remaining}
+              onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
       <main className="max-w-6xl mx-auto px-4 py-10 text-center text-red-600">{err}</main>
     </>);
   }
@@ -283,23 +304,25 @@ const App = () => {
         <TopBar page={page} mode={mode} timeLeft={remaining}
                 onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
         <Background/>
-        <main className="relative max-w-5xl mx-auto px-4 py-10">{/* narrower card */}
+        <main className="relative max-w-6xl mx-auto px-4 py-10">
           <section className={cardWrap}>
             <div className={glassCard}>
               <div className="pointer-events-none absolute -top-16 -left-16 w-72 h-72 bg-white/20 rounded-full blur-3xl"></div>
 
-              {/* Big title inside card */}
               <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-gray-900">
                 EconoLearn <span className="font-semibold text-gray-500">— MCQ Practice for CUET PG Economics</span>
               </h2>
               <p className="text-gray-700 mt-2">Practice chapter-wise Economics PYQs with instant feedback.</p>
 
-              <div className="mt-6 grid md:grid-cols-[1fr_auto] gap-6 items-start">
+              <div className="mt-6 grid md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm">Chapter Filter</label>
-                  <FancySelect value={chapter} onChange={setChapter} options={chapterList}/>
+                  <SmartSelect
+                    value={chapter}
+                    onChange={setChapter}
+                    options={chapterList}
+                  />
                 </div>
-
                 <div>
                   <label className="text-sm">Mode</label>
                   <div className="flex gap-4 mt-2">
@@ -314,7 +337,7 @@ const App = () => {
               </div>
 
               {mode==='test' && (
-                <div className="mt-5 flex flex-col md:flex-row md:items-end md:gap-6 gap-4">
+                <div className="mt-5 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
                   <div>
                     <label className="text-sm">No. of Questions</label>
                     <input
@@ -323,7 +346,7 @@ const App = () => {
                       max={filteredCount}
                       value={testCount}
                       onChange={e=>setTestCount(e.target.value)}
-                      className="w-28 md:w-32 p-2 border rounded-lg bg-white/60 backdrop-blur"
+                      className="w-20 md:w-24 p-2 border rounded-lg bg-white/60 backdrop-blur"
                     />
                     <p className="text-xs text-gray-700 mt-1">
                       Available: {filteredCount}
@@ -335,10 +358,9 @@ const App = () => {
                     </p>
                   </div>
 
-                  {/* Time limit on the same row; compact width */}
-                  <div>
+                  <div className="md:text-right">
                     <label className="text-sm block">Time limit</label>
-                    <div className="p-2 border rounded bg-white/60 backdrop-blur text-sm w-28 md:w-32 text-center">
+                    <div className="p-2 border rounded bg-white/60 backdrop-blur text-sm w-20 md:w-24 text-center">
                       {fmt(est)}
                     </div>
                   </div>
@@ -354,7 +376,10 @@ const App = () => {
                     Start Practice
                   </button>
                 ) : (
-                  <button onClick={startTest} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>
+                  <button
+                    onClick={startTest}
+                    className={solidBtn("bg-teal-600 hover:bg-teal-700")}
+                  >
                     Start Test
                   </button>
                 )}
@@ -372,7 +397,6 @@ const App = () => {
   if (page==='quiz') {
     const q = activeSet[current]; if (!q) return null;
 
-    const attemptedCount = attempted;
     return (
       <>
         <TopBar page={page} mode={mode} timeLeft={remaining}
@@ -427,8 +451,8 @@ const App = () => {
                     <div className="flex-1" />
                     <div className="flex items-center gap-4">
                       <div className="text-[13px] text-gray-700 text-right leading-tight">
-                        <div>Attempted: <b>{attemptedCount}</b></div>
-                        <div className="mt-1">Unattempted: <b>{unattempted}</b></div>
+                        <div>Attempted: <b>{Object.keys(answers).filter(k=>answers[k]!=null).length}</b></div>
+                        <div className="mt-1">Unattempted: <b>{Math.max(0, activeSet.length - Object.keys(answers).filter(k=>answers[k]!=null).length)}</b></div>
                       </div>
                       {current < activeSet.length-1 ? (
                         <button onClick={()=>{ if(!answers[current] && !marked[current]) setSkipped(p=>({...p,[current]:true})); setCurrent(c=>c+1); }} className={solidBtn("bg-teal-600 hover:bg-teal-700")}>Next</button>
@@ -522,7 +546,7 @@ const App = () => {
     );
   }
 
-  /* ---- HISTORY ---- */
+  /* ---- HISTORY (beautified) ---- */
   if (page==='history') {
     const h = store.get();
     const sorted = [...h].sort((a,b)=>{
@@ -537,84 +561,112 @@ const App = () => {
       <>
         <TopBar page={page} mode={mode} timeLeft={remaining}
                 onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
+        <Background/>
         <main className="max-w-6xl mx-auto px-4 py-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">Past Results</h2>
-            <select className="border rounded px-2 py-1" value={sortBy} onChange={e=>setSortBy(e.target.value)}>
-              <option value="date_desc">Newest first</option>
-              <option value="date_asc">Oldest first</option>
-              <option value="score_desc">Score high → low</option>
-              <option value="score_asc">Score low → high</option>
-            </select>
-          </div>
-          {sorted.length===0 ? (
-            <div className="text-gray-500">No attempts yet.</div>
-          ) : (
-            <div className="space-y-4">
-              {sorted.map(a=>(
-                <details key={a.id} className="rounded-xl border bg-white/70 backdrop-blur p-4">
-                  <summary className="cursor-pointer flex items-center justify-between">
-                    <div>
-                      <div className="font-semibold">{new Date(a.timestamp).toLocaleString()} • {a.mode} • {a.chapter}</div>
-                      <div className="text-sm text-gray-700">Score: {a.score}/{a.total} ({a.percent}%) {a.durationSec?`• Time: ${fmt(a.durationSec)}`:''}</div>
-                    </div>
-                  </summary>
-                  <div className="mt-3 space-y-2">
-                    {a.questions.map((q,i)=>{
-                      const your=a.answers[i]; const ok=your===q.answer;
-                      return (
-                        <div key={i} className="p-3 border rounded bg-white/60">
-                          <div className="flex justify-between">
-                            <b>Q{i+1}. {q.question}</b>
-                            <span className={`text-xs px-2 py-1 rounded ${ok?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}`}>{ok?'Correct':'Incorrect'}</span>
-                          </div>
-                          <div className="text-sm text-gray-700">Chapter: {q.chapter || '—'} • Source: {q.source || '—'}</div>
-                          <div className="text-sm">Your: {your || 'Not answered'} • Correct: <b className="text-green-700">{q.answer}</b></div>
+          <section className={cardWrap}>
+            <div className={glassCard}>
+              <h2 className="text-xl font-semibold mb-4">Past Results</h2>
+              <div className="flex items-center gap-3 mb-4">
+                <span className="text-sm text-gray-600">Sort:</span>
+                <select className="border rounded px-2 py-1 bg-white/70 backdrop-blur" value={sortBy} onChange={e=>setSortBy(e.target.value)}>
+                  <option value="date_desc">Newest first</option>
+                  <option value="date_asc">Oldest first</option>
+                  <option value="score_desc">Score high → low</option>
+                  <option value="score_asc">Score low → high</option>
+                </select>
+              </div>
+
+              {sorted.length===0 ? (
+                <div className="text-gray-500">No attempts yet.</div>
+              ) : (
+                <div className="space-y-4">
+                  {sorted.map(a=>(
+                    <details key={a.id} className="rounded-xl border bg-white/70 backdrop-blur p-4">
+                      <summary className="cursor-pointer flex items-center justify-between">
+                        <div>
+                          <div className="font-semibold">{new Date(a.timestamp).toLocaleString()} • {a.mode} • {a.chapter}</div>
+                          <div className="text-sm text-gray-700">Score: {a.score}/{a.total} ({a.percent}%) {a.durationSec?`• Time: ${fmt(a.durationSec)}`:''}</div>
                         </div>
-                      );
-                    })}
-                  </div>
-                </details>
-              ))}
+                      </summary>
+                      <div className="mt-3 space-y-2">
+                        {(a.questions||[]).map((q,i)=>{
+                          const your=(a.answers||[])[i]; const ok=your===q.answer;
+                          return (
+                            <div key={i} className="p-3 border rounded bg-white/60">
+                              <div className="flex justify-between">
+                                <b>Q{i+1}. {q.question}</b>
+                                <span className={`text-xs px-2 py-1 rounded ${ok?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}`}>{ok?'Correct':'Incorrect'}</span>
+                              </div>
+                              <div className="text-sm text-gray-700">Chapter: {q.chapter || '—'} • Source: {q.source || '—'}</div>
+                              <div className="text-sm">Your: {your || 'Not answered'} • Correct: <b className="text-green-700">{q.answer}</b></div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </details>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
+          </section>
         </main>
       </>
     );
   }
 
-  /* ---- ANALYTICS ---- */
+  /* ---- ANALYTICS (beautified + defensive) ---- */
   if (page==='analytics') {
     const hist = store.get();
     const agg = {};
-    hist.forEach(at => at.questions.forEach((q,i)=>{
-      const ch=q.chapter||'Unknown'; if(!agg[ch]) agg[ch]={correct:0,total:0};
-      agg[ch].total++; if(at.answers[i]===q.answer) agg[ch].correct++;
+    (hist||[]).forEach(at => (at.questions||[]).forEach((q,i)=>{
+      const ch=q.chapter||'Unknown';
+      if(!agg[ch]) agg[ch]={correct:0,total:0};
+      agg[ch].total++;
+      if ((at.answers||[])[i] === q.answer) agg[ch].correct++;
     }));
     const rows = Object.entries(agg).map(([ch,{correct,total}])=>({ch,correct,total,pct: total?Math.round(correct/total*100):0}))
                                    .sort((a,b)=>a.ch.localeCompare(b.ch));
+
+    const overall = rows.reduce((acc,r)=>({correct:acc.correct+r.correct,total:acc.total+r.total}),{correct:0,total:0});
+    const overallPct = overall.total? Math.round(overall.correct/overall.total*100):0;
 
     return (
       <>
         <TopBar page={page} mode={mode} timeLeft={remaining}
                 onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
+        <Background/>
         <main className="max-w-6xl mx-auto px-4 py-8">
-          <h2 className="text-xl font-semibold mb-4">Chapter-wise Analytics</h2>
-          {rows.length===0 ? <div className="text-gray-500">No data yet.</div> : (
-            <div className="space-y-3">
-              {rows.map(r=>(
-                <div key={r.ch} className="p-3 border rounded-xl bg-white/70 backdrop-blur">
-                  <div className="flex items-center justify-between">
-                    <div className="font-semibold">{r.ch}</div>
-                    <div className="text-sm text-gray-700">{r.correct}/{r.total} correct • {r.pct}%</div>
-                  </div>
-                  <div className="mt-2 h-3 w-full bg-gray-100 rounded-full overflow-hidden">
-                    <div className="h-full bg-teal-500" style={{width:`${r.pct}%`}}/>
-                  </div>
+          <section className={cardWrap}>
+            <div className={glassCard}>
+              <h2 className="text-xl font-semibold mb-4">Chapter-wise Analytics</h2>
+
+              <div className="mb-6 rounded-xl border bg-white/70 backdrop-blur p-4">
+                <div className="flex items-center justify-between">
+                  <div className="font-semibold">Overall accuracy</div>
+                  <div className="text-sm text-gray-700">{overall.correct}/{overall.total} correct • {overallPct}%</div>
                 </div>
-              ))}
+                <div className="mt-2 h-3 w-full bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-teal-500" style={{width:`${overallPct}%`}}/>
+                </div>
+              </div>
+
+              {rows.length===0 ? <div className="text-gray-500">No data yet.</div> : (
+                <div className="grid md:grid-cols-2 gap-4">
+                  {rows.map(r=>(
+                    <div key={r.ch} className="p-4 rounded-xl border bg-white/70 backdrop-blur">
+                      <div className="flex items-center justify-between">
+                        <div className="font-semibold">{r.ch}</div>
+                        <div className="text-sm text-gray-700">{r.correct}/{r.total} • {r.pct}%</div>
+                      </div>
+                      <div className="mt-2 h-3 w-full bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-teal-500" style={{width:`${r.pct}%`}}/>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
+          </section>
         </main>
       </>
     );
