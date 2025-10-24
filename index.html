@@ -3,240 +3,54 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>EconoLearn — CUET PG Economics</title>
+  <title>EconoLearn – CUET PG Economics</title>
 
-  <!-- ONE-TIME purge: kill old service workers & caches that show stale UI -->
+  <!-- PWA -->
+  <meta name="theme-color" content="#fce7ef" />
+  <link rel="manifest" href="manifest.webmanifest"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+
+  <!-- Fonts + Tailwind -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    (async () => {
-      try {
-        const VERSION = 'el-v3';        // bump this when you push a new build
-        if (localStorage.getItem('EL_VER') !== VERSION) {
-          if ('serviceWorker' in navigator) {
-            const regs = await navigator.serviceWorker.getRegistrations();
-            for (const r of regs) { try { await r.unregister(); } catch(e){} }
-          }
-          if (window.caches?.keys) {
-            const keys = await caches.keys();
-            await Promise.all(keys.map(k => caches.delete(k)));
-          }
-          localStorage.setItem('EL_VER', VERSION);
-          // Reload once so the page runs with clean caches
-          if (!sessionStorage.getItem('EL_RELOADED')) {
-            sessionStorage.setItem('EL_RELOADED', '1');
-            if (!location.hash) location.hash = '/';
-            location.reload();
-          }
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { poppins: ['Poppins', 'sans-serif'] },
+          colors: { brand: '#0ea5a4' }
         }
-      } catch(e) { /* ignore */ }
-    })();
+      }
+    }
   </script>
 
-  <!-- Tailwind (CDN) -->
-  <script src="https://cdn.tailwindcss.com?plugins=forms&v=el-v3"></script>
+  <style>
+    html, body { height: 100%; background:#fff; }
+    body { font-family: 'Poppins', sans-serif; color:#111827; }
+    @keyframes slide { from {opacity:0; transform: translateY(8px);} to {opacity:1; transform:none;} }
+  </style>
 
-  <!-- React 18 + Babel (ONLY 'react' preset, no 'env') -->
-  <script src="https://unpkg.com/react@18/umd/react.development.js?v=el-v3"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js?v=el-v3"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js?v=el-v3"></script>
-
-  <!-- Extra anti-cache headers -->
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-  <meta http-equiv="Pragma" content="no-cache" />
-  <meta http-equiv="Expires" content="0" />
+  <!-- React UMD + Babel (react preset only) -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 
-<body class="min-h-screen bg-gradient-to-b from-rose-50 to-rose-100 text-slate-800">
-  <!-- Top bar -->
-  <header class="bg-white/70 backdrop-blur border-b sticky top-0 z-50">
-    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-      <div class="font-extrabold text-lg sm:text-xl">
-        <span class="text-slate-900">EconoLearn</span>
-        <span class="text-slate-400"> — CUET PG Economics</span>
-      </div>
-      <nav class="flex gap-2">
-        <a href="#/" class="px-3 py-1 rounded hover:bg-slate-100">Home</a>
-        <a href="#/results" class="px-3 py-1 rounded hover:bg-slate-100">Review Past Results</a>
-        <a href="#/analytics" class="px-3 py-1 rounded hover:bg-slate-100">Analytics</a>
-      </nav>
-    </div>
-  </header>
+<body>
+  <div id="root"></div>
 
-  <main id="root" class="max-w-6xl mx-auto px-4 py-8"></main>
-
-  <script type="text/babel" data-presets="react">
-    const { useEffect, useState } = React;
-
-    /* ----------------- tiny, reliable hash router ----------------- */
-    function useHashRoute(){
-      const read = () => (location.hash.replace(/^#/, '') || '/');
-      const [route,setRoute] = useState(read());
-      useEffect(()=>{
-        const onHash = () => setRoute(read());
-        window.addEventListener('hashchange', onHash);
-        if (!location.hash) location.hash = '/';
-        return () => window.removeEventListener('hashchange', onHash);
-      },[]);
-      return [route, to => { if (to !== route) location.hash = to; }];
-    }
-
-    /* ------------------------- UI helpers ------------------------- */
-    const card = "rounded-[28px] shadow-xl border border-rose-200/70 " +
-                 "bg-gradient-to-br from-rose-100/70 to-rose-200/60 " +
-                 "backdrop-blur p-6 sm:p-8";
-
-    function TitlePill(){
-      return (
-        <div className="mb-6">
-          <div className="inline-flex items-center gap-3 rounded-full border border-rose-300/70 bg-white/70 px-5 py-2.5">
-            <span className="text-3xl sm:text-4xl font-extrabold text-rose-700">EconoLearn</span>
-            <span className="text-lg sm:text-xl font-semibold text-slate-700">— MCQ Practice for CUET PG Economics</span>
-          </div>
-          <p className="mt-3 text-slate-600">Practice chapter-wise Economics PYQs with instant feedback.</p>
-        </div>
-      );
-    }
-
-    const CHAPTERS = [
-      "All",
-      "Theory of Consumer Behaviour",
-      "Theory of Demand & Elasticity",
-      "Theory of Production & Cost",
-      "Market Structures",
-      "Factor Pricing & Distribution",
-      "Welfare Economics"
-    ];
-
-    /* ---------------------------- Screens ---------------------------- */
-    function Home({onStart,onResults,onAnalytics}){
-      const [chapter,setChapter] = useState("All");
-      const [mode,setMode] = useState("practice");
-
-      return (
-        <section className={card}>
-          <TitlePill />
-          <div className="grid sm:grid-cols-3 gap-4 items-end">
-            <label className="sm:col-span-2">
-              <span className="block text-sm font-medium text-slate-700 mb-1">Chapter Filter</span>
-              <select className="w-full rounded-md" value={chapter} onChange={e=>setChapter(e.target.value)}>
-                {CHAPTERS.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </label>
-
-            <fieldset>
-              <legend className="text-sm font-medium text-slate-700 mb-1">Mode</legend>
-              <div className="flex gap-4">
-                <label className="inline-flex items-center gap-2">
-                  <input type="radio" name="mode" value="practice" checked={mode==="practice"} onChange={()=>setMode("practice")}/>
-                  <span>Practice</span>
-                </label>
-                <label className="inline-flex items-center gap-2">
-                  <input type="radio" name="mode" value="test" checked={mode==="test"} onChange={()=>setMode("test")}/>
-                  <span>Test</span>
-                </label>
-              </div>
-            </fieldset>
-          </div>
-
-          <div className="mt-5 flex flex-wrap gap-3">
-            <button className="px-4 py-2 rounded-md bg-emerald-600 text-white hover:bg-emerald-700"
-              onClick={()=>onStart({chapter, mode})}>Start Practice</button>
-            <button className="px-4 py-2 rounded-md bg-white/80 border hover:bg-white" onClick={onResults}>Review Past Results</button>
-            <button className="px-4 py-2 rounded-md bg-white/80 border hover:bg-white" onClick={onAnalytics}>Analytics</button>
-          </div>
-        </section>
-      );
-    }
-
-    function Start({args,onHome}){
-      const total = args?.total ?? 10;
-      const timerMins = Math.ceil(total * 1.2);   // your global rule
-      return (
-        <section className={card}>
-          <h2 className="text-2xl font-bold mb-2">Starting: {args?.mode?.toUpperCase() || "PRACTICE"}</h2>
-          <p className="text-slate-700 mb-4">
-            Chapter: <b>{args?.chapter || "All"}</b> • Time: <b>{String(timerMins).padStart(2,'0')}:00</b>
-          </p>
-          <p className="text-slate-600">Baseline screen. We’ll plug the full quiz back here after stability.</p>
-          <button className="mt-4 px-4 py-2 rounded-md bg-slate-800 text-white" onClick={onHome}>Home</button>
-        </section>
-      );
-    }
-
-    function PastResults({onHome,onPractice,onRetake}){
-      const data = JSON.parse(localStorage.getItem("econolearn_results") || "[]");
-      return (
-        <section>
-          <h2 className="text-2xl font-extrabold mb-4">Past Results</h2>
-          {data.length === 0 && <p className="text-slate-600 mb-4">No results yet.</p>}
-          {data.map((r,i)=>(
-            <div key={i} className="rounded-xl border bg-white p-4 shadow-sm mb-3 flex items-center justify-between gap-3">
-              <div>
-                <div className="font-semibold">{new Date(r.at).toLocaleString()} • {r.mode} • {r.chapter}</div>
-                <div className="text-sm text-slate-600">Score: {r.score}/{r.total} ({Math.round(r.score*100/r.total)}%) • Time: {r.time}</div>
-              </div>
-              <div className="flex gap-2">
-                <button className="px-3 py-1.5 rounded-md border bg-white hover:bg-slate-50" onClick={()=>onPractice(r.chapter)}>Practice this chapter</button>
-                <button className="px-3 py-1.5 rounded-md bg-emerald-600 text-white hover:bg-emerald-700" onClick={()=>onRetake(r.chapter, r.total)}>Retake test ({r.total})</button>
-              </div>
-            </div>
-          ))}
-          <button className="px-4 py-2 rounded-md bg-slate-800 text-white" onClick={onHome}>Home</button>
-        </section>
-      );
-    }
-
-    function Analytics({onHome}){
-      return (
-        <section className={card}>
-          <h2 className="text-2xl font-extrabold mb-2">Analytics</h2>
-          <p className="text-slate-600">Analytics will appear here.</p>
-          <button className="mt-4 px-4 py-2 rounded-md bg-slate-800 text-white" onClick={onHome}>Home</button>
-        </section>
-      );
-    }
-
-    /* ------------------------------ App shell ------------------------------ */
-    function App(){
-      const [route, nav] = useHashRoute();
-      const [startArgs, setStartArgs] = useState(null);
-
-      // seed one dummy result (so buttons work) — remove later if you want
-      useEffect(()=>{
-        if(!localStorage.getItem("econolearn_results")){
-          localStorage.setItem("econolearn_results", JSON.stringify([{
-            at: Date.now(), chapter: "All", mode: "test", score: 0, total: 10, time: "12:00"
-          }]));
-        }
-      },[]);
-
-      const goHome = ()=>nav("/");
-      const goResults = ()=>nav("/results");
-      const goAnalytics = ()=>nav("/analytics");
-      const goStart = (args)=>{ setStartArgs(args); nav("/start"); };
-
-      const practice = (chapter)=>goStart({chapter, mode:"practice"});
-      const retake   = (chapter,total)=>goStart({chapter, mode:"test", total});
-
-      return (
-        <div className="grid gap-8">
-          {route === "/" && <Home onStart={goStart} onResults={goResults} onAnalytics={goAnalytics} />}
-          {route === "/start" && <Start args={startArgs} onHome={goHome} />}
-          {route === "/results" && <PastResults onHome={goHome} onPractice={practice} onRetake={retake} />}
-          {route === "/analytics" && <Analytics onHome={goHome} />}
-        </div>
-      );
-    }
-
-    // safe render with on-screen error if anything fails
-    try {
-      ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
-    } catch (e) {
-      const pre = document.createElement('pre');
-      pre.style.color = 'red';
-      pre.style.whiteSpace = 'pre-wrap';
-      pre.textContent = 'Render error: ' + (e?.message || e);
-      document.getElementById('root').appendChild(pre);
+  <!-- Register SW -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
+      });
     }
   </script>
+
+  <!-- App -->
+  <script type="text/babel" data-presets="react" src="./main.jsx"></script>
 </body>
 </html>
