@@ -5,15 +5,41 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>EconoLearn — CUET PG Economics</title>
 
-  <!-- Tailwind (CDN) -->
-  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+  <!-- 0) KILL old Service Workers & caches that cause "old page on normal refresh" -->
+  <script>
+    (async function fixCaching(){
+      try {
+        // one-time version bump — change this string whenever you push
+        const VER = 'el-2025-10-24-a';
+        const KEY = 'EL_VERSION';
+        const prev = localStorage.getItem(KEY);
+        if (prev !== VER) {
+          if ('serviceWorker' in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            for (const r of regs) { try { await r.unregister(); } catch(e){} }
+          }
+          if (window.caches && caches.keys) {
+            const names = await caches.keys();
+            await Promise.all(names.map(n => caches.delete(n)));
+          }
+          localStorage.setItem(KEY, VER);
+          // force a clean reload exactly once after purge
+          if (!location.hash) location.hash = '/';
+          location.reload();
+        }
+      } catch (e) { /* ignore */ }
+    })();
+  </script>
 
-  <!-- React 18 + Babel (ONLY react preset) -->
-  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- 1) Tailwind (CDN) -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms&v=2025-10-24-a"></script>
 
-  <!-- kill stale caches on GH Pages -->
+  <!-- 2) React 18 + Babel (ONLY 'react' preset) -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js?v=2025-10-24-a"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js?v=2025-10-24-a"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js?v=2025-10-24-a"></script>
+
+  <!-- 3) No-store headers help, but SW cache was the real culprit -->
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
@@ -37,24 +63,24 @@
 
   <main id="root" class="max-w-5xl mx-auto px-4 py-8"></main>
 
+  <!-- App -->
   <script type="text/babel" data-presets="react">
     const {useEffect,useState} = React;
 
-    /* ---------- tiny hash router (reliable on GH Pages) ---------- */
+    /* -------- Reliable hash router (works after refresh on GH Pages) -------- */
     function useHashRoute(){
-      const get = () => (location.hash.replace(/^#/, '') || '/');
-      const [route,setRoute] = useState(get());
+      const read = () => (location.hash.replace(/^#/, '') || '/');
+      const [route,setRoute] = useState(read());
       useEffect(()=>{
-        const onHash = () => setRoute(get());
+        const onHash = () => setRoute(read());
         window.addEventListener('hashchange', onHash);
-        if(!location.hash) location.hash = '/'; // default once
+        if(!location.hash) location.hash = '/';
         return ()=>window.removeEventListener('hashchange', onHash);
       },[]);
-      const nav = (to)=>{ if(to!==route) location.hash = to; };
-      return [route, nav];
+      return [route, (to)=>{ if(to!==route) location.hash = to; }];
     }
 
-    /* ------------------------- UI helpers ------------------------- */
+    /* ------------------------------ UI bits ------------------------------ */
     const card = "rounded-[26px] shadow-xl border border-rose-200/70 \
                   bg-gradient-to-br from-rose-100/70 to-rose-200/60 \
                   backdrop-blur p-6 sm:p-8";
@@ -69,10 +95,9 @@
         </div>
       );
     }
-
     const CHAPTERS = ["All","Theory of Demand & Elasticity","Theory of Consumer Behaviour","Production & Cost","Market Structures","Factor Pricing","Welfare"];
 
-    /* --------------------------- Screens -------------------------- */
+    /* -------------------------------- Pages ------------------------------- */
     function Home({onStart,onResults,onAnalytics}){
       const [chapter,setChapter] = useState("All");
       const [mode,setMode] = useState("practice");
@@ -113,12 +138,12 @@
 
     function Start({args,onHome}){
       const total = args?.total ?? 10;
-      const timerMins = Math.ceil(total * 1.2); // your global rule
+      const timerMins = Math.ceil(total * 1.2); // global rule
       return (
         <section className={card}>
           <h2 className="text-2xl font-bold mb-2">Starting: {args?.mode?.toUpperCase() || "PRACTICE"}</h2>
           <p className="text-slate-700 mb-4">Chapter: <b>{args?.chapter || "All"}</b> • Time: <b>{String(timerMins).padStart(2,"0")}:00</b></p>
-          <p className="text-slate-600">This is a minimal placeholder screen. Once this baseline is stable we’ll plug your quiz component here.</p>
+          <p className="text-slate-600">Baseline screen. We’ll plug in the full quiz once this is stable.</p>
           <button className="mt-4 px-4 py-2 rounded-md bg-slate-800 text-white" onClick={onHome}>Home</button>
         </section>
       );
@@ -157,13 +182,13 @@
       );
     }
 
-    /* ----------------------------- App ----------------------------- */
+    /* --------------------------------- App -------------------------------- */
     function App(){
       const [route, nav] = useHashRoute();
       const [startArgs,setStartArgs] = useState(null);
 
-      // seed one dummy result so your buttons have something to act on
       useEffect(()=>{
+        // seed one dummy result so buttons have something to act on
         if(!localStorage.getItem("econolearn_results")){
           localStorage.setItem("econolearn_results", JSON.stringify([{
             at: Date.now(), chapter: "All", mode: "test", score: 0, total: 10, time: "12:00"
@@ -175,9 +200,8 @@
       const goResults = ()=>nav("/results");
       const goAnalytics = ()=>nav("/analytics");
       const goStart = (args)=>{ setStartArgs(args); nav("/start"); };
-
       const practice = (chapter)=>goStart({chapter, mode:"practice"});
-      const retake = (chapter,total)=>goStart({chapter, mode:"test", total});
+      const retake   = (chapter,total)=>goStart({chapter, mode:"test", total});
 
       return (
         <div className="grid gap-8">
@@ -189,12 +213,13 @@
       );
     }
 
-    /* ----------- render with safety net to show errors ----------- */
-    try{
-      ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
-    }catch(e){
+    // render with on-screen error if something breaks
+    try {
+      ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+    } catch (e) {
       const pre = document.createElement('pre');
       pre.style.color = 'red';
+      pre.style.whiteSpace = 'pre-wrap';
       pre.textContent = 'Render error: ' + (e?.message || e);
       document.getElementById('root').appendChild(pre);
     }
