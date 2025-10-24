@@ -5,41 +5,41 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>EconoLearn — CUET PG Economics</title>
 
-  <!-- 0) KILL old Service Workers & caches that cause "old page on normal refresh" -->
+  <!-- ONE-TIME purge: kill old service workers & caches that show stale UI -->
   <script>
-    (async function fixCaching(){
+    (async () => {
       try {
-        // one-time version bump — change this string whenever you push
-        const VER = 'el-2025-10-24-a';
-        const KEY = 'EL_VERSION';
-        const prev = localStorage.getItem(KEY);
-        if (prev !== VER) {
+        const VERSION = 'el-v3';        // bump this when you push a new build
+        if (localStorage.getItem('EL_VER') !== VERSION) {
           if ('serviceWorker' in navigator) {
             const regs = await navigator.serviceWorker.getRegistrations();
             for (const r of regs) { try { await r.unregister(); } catch(e){} }
           }
-          if (window.caches && caches.keys) {
-            const names = await caches.keys();
-            await Promise.all(names.map(n => caches.delete(n)));
+          if (window.caches?.keys) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map(k => caches.delete(k)));
           }
-          localStorage.setItem(KEY, VER);
-          // force a clean reload exactly once after purge
-          if (!location.hash) location.hash = '/';
-          location.reload();
+          localStorage.setItem('EL_VER', VERSION);
+          // Reload once so the page runs with clean caches
+          if (!sessionStorage.getItem('EL_RELOADED')) {
+            sessionStorage.setItem('EL_RELOADED', '1');
+            if (!location.hash) location.hash = '/';
+            location.reload();
+          }
         }
-      } catch (e) { /* ignore */ }
+      } catch(e) { /* ignore */ }
     })();
   </script>
 
-  <!-- 1) Tailwind (CDN) -->
-  <script src="https://cdn.tailwindcss.com?plugins=forms&v=2025-10-24-a"></script>
+  <!-- Tailwind (CDN) -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms&v=el-v3"></script>
 
-  <!-- 2) React 18 + Babel (ONLY 'react' preset) -->
-  <script src="https://unpkg.com/react@18/umd/react.development.js?v=2025-10-24-a"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js?v=2025-10-24-a"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js?v=2025-10-24-a"></script>
+  <!-- React 18 + Babel (ONLY 'react' preset, no 'env') -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js?v=el-v3"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js?v=el-v3"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js?v=el-v3"></script>
 
-  <!-- 3) No-store headers help, but SW cache was the real culprit -->
+  <!-- Extra anti-cache headers -->
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
@@ -48,7 +48,7 @@
 <body class="min-h-screen bg-gradient-to-b from-rose-50 to-rose-100 text-slate-800">
   <!-- Top bar -->
   <header class="bg-white/70 backdrop-blur border-b sticky top-0 z-50">
-    <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
       <div class="font-extrabold text-lg sm:text-xl">
         <span class="text-slate-900">EconoLearn</span>
         <span class="text-slate-400"> — CUET PG Economics</span>
@@ -61,56 +61,67 @@
     </div>
   </header>
 
-  <main id="root" class="max-w-5xl mx-auto px-4 py-8"></main>
+  <main id="root" class="max-w-6xl mx-auto px-4 py-8"></main>
 
-  <!-- App -->
   <script type="text/babel" data-presets="react">
-    const {useEffect,useState} = React;
+    const { useEffect, useState } = React;
 
-    /* -------- Reliable hash router (works after refresh on GH Pages) -------- */
+    /* ----------------- tiny, reliable hash router ----------------- */
     function useHashRoute(){
       const read = () => (location.hash.replace(/^#/, '') || '/');
       const [route,setRoute] = useState(read());
       useEffect(()=>{
         const onHash = () => setRoute(read());
         window.addEventListener('hashchange', onHash);
-        if(!location.hash) location.hash = '/';
-        return ()=>window.removeEventListener('hashchange', onHash);
+        if (!location.hash) location.hash = '/';
+        return () => window.removeEventListener('hashchange', onHash);
       },[]);
-      return [route, (to)=>{ if(to!==route) location.hash = to; }];
+      return [route, to => { if (to !== route) location.hash = to; }];
     }
 
-    /* ------------------------------ UI bits ------------------------------ */
-    const card = "rounded-[26px] shadow-xl border border-rose-200/70 \
-                  bg-gradient-to-br from-rose-100/70 to-rose-200/60 \
-                  backdrop-blur p-6 sm:p-8";
-    function BigTitle(){
+    /* ------------------------- UI helpers ------------------------- */
+    const card = "rounded-[28px] shadow-xl border border-rose-200/70 " +
+                 "bg-gradient-to-br from-rose-100/70 to-rose-200/60 " +
+                 "backdrop-blur p-6 sm:p-8";
+
+    function TitlePill(){
       return (
         <div className="mb-6">
           <div className="inline-flex items-center gap-3 rounded-full border border-rose-300/70 bg-white/70 px-5 py-2.5">
             <span className="text-3xl sm:text-4xl font-extrabold text-rose-700">EconoLearn</span>
             <span className="text-lg sm:text-xl font-semibold text-slate-700">— MCQ Practice for CUET PG Economics</span>
           </div>
-          <p className="mt-3 text-slate-600">Practice chapter-wise PYQs with instant feedback.</p>
+          <p className="mt-3 text-slate-600">Practice chapter-wise Economics PYQs with instant feedback.</p>
         </div>
       );
     }
-    const CHAPTERS = ["All","Theory of Demand & Elasticity","Theory of Consumer Behaviour","Production & Cost","Market Structures","Factor Pricing","Welfare"];
 
-    /* -------------------------------- Pages ------------------------------- */
+    const CHAPTERS = [
+      "All",
+      "Theory of Consumer Behaviour",
+      "Theory of Demand & Elasticity",
+      "Theory of Production & Cost",
+      "Market Structures",
+      "Factor Pricing & Distribution",
+      "Welfare Economics"
+    ];
+
+    /* ---------------------------- Screens ---------------------------- */
     function Home({onStart,onResults,onAnalytics}){
       const [chapter,setChapter] = useState("All");
       const [mode,setMode] = useState("practice");
+
       return (
         <section className={card}>
-          <BigTitle/>
+          <TitlePill />
           <div className="grid sm:grid-cols-3 gap-4 items-end">
             <label className="sm:col-span-2">
               <span className="block text-sm font-medium text-slate-700 mb-1">Chapter Filter</span>
-              <select className="w-full rounded-md" value={chapter} onChange={(e)=>setChapter(e.target.value)}>
-                {CHAPTERS.map(c=> <option key={c}>{c}</option>)}
+              <select className="w-full rounded-md" value={chapter} onChange={e=>setChapter(e.target.value)}>
+                {CHAPTERS.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </label>
+
             <fieldset>
               <legend className="text-sm font-medium text-slate-700 mb-1">Mode</legend>
               <div className="flex gap-4">
@@ -128,7 +139,7 @@
 
           <div className="mt-5 flex flex-wrap gap-3">
             <button className="px-4 py-2 rounded-md bg-emerald-600 text-white hover:bg-emerald-700"
-              onClick={()=>onStart({chapter,mode})}>Start Practice</button>
+              onClick={()=>onStart({chapter, mode})}>Start Practice</button>
             <button className="px-4 py-2 rounded-md bg-white/80 border hover:bg-white" onClick={onResults}>Review Past Results</button>
             <button className="px-4 py-2 rounded-md bg-white/80 border hover:bg-white" onClick={onAnalytics}>Analytics</button>
           </div>
@@ -138,12 +149,14 @@
 
     function Start({args,onHome}){
       const total = args?.total ?? 10;
-      const timerMins = Math.ceil(total * 1.2); // global rule
+      const timerMins = Math.ceil(total * 1.2);   // your global rule
       return (
         <section className={card}>
           <h2 className="text-2xl font-bold mb-2">Starting: {args?.mode?.toUpperCase() || "PRACTICE"}</h2>
-          <p className="text-slate-700 mb-4">Chapter: <b>{args?.chapter || "All"}</b> • Time: <b>{String(timerMins).padStart(2,"0")}:00</b></p>
-          <p className="text-slate-600">Baseline screen. We’ll plug in the full quiz once this is stable.</p>
+          <p className="text-slate-700 mb-4">
+            Chapter: <b>{args?.chapter || "All"}</b> • Time: <b>{String(timerMins).padStart(2,'0')}:00</b>
+          </p>
+          <p className="text-slate-600">Baseline screen. We’ll plug the full quiz back here after stability.</p>
           <button className="mt-4 px-4 py-2 rounded-md bg-slate-800 text-white" onClick={onHome}>Home</button>
         </section>
       );
@@ -182,13 +195,13 @@
       );
     }
 
-    /* --------------------------------- App -------------------------------- */
+    /* ------------------------------ App shell ------------------------------ */
     function App(){
       const [route, nav] = useHashRoute();
-      const [startArgs,setStartArgs] = useState(null);
+      const [startArgs, setStartArgs] = useState(null);
 
+      // seed one dummy result (so buttons work) — remove later if you want
       useEffect(()=>{
-        // seed one dummy result so buttons have something to act on
         if(!localStorage.getItem("econolearn_results")){
           localStorage.setItem("econolearn_results", JSON.stringify([{
             at: Date.now(), chapter: "All", mode: "test", score: 0, total: 10, time: "12:00"
@@ -200,20 +213,21 @@
       const goResults = ()=>nav("/results");
       const goAnalytics = ()=>nav("/analytics");
       const goStart = (args)=>{ setStartArgs(args); nav("/start"); };
+
       const practice = (chapter)=>goStart({chapter, mode:"practice"});
       const retake   = (chapter,total)=>goStart({chapter, mode:"test", total});
 
       return (
         <div className="grid gap-8">
-          {route === "/" && <Home onStart={goStart} onResults={goResults} onAnalytics={goAnalytics}/>}
-          {route === "/start" && <Start args={startArgs} onHome={goHome}/>}
-          {route === "/results" && <PastResults onHome={goHome} onPractice={practice} onRetake={retake}/>}
-          {route === "/analytics" && <Analytics onHome={goHome}/>}
+          {route === "/" && <Home onStart={goStart} onResults={goResults} onAnalytics={goAnalytics} />}
+          {route === "/start" && <Start args={startArgs} onHome={goHome} />}
+          {route === "/results" && <PastResults onHome={goHome} onPractice={practice} onRetake={retake} />}
+          {route === "/analytics" && <Analytics onHome={goHome} />}
         </div>
       );
     }
 
-    // render with on-screen error if something breaks
+    // safe render with on-screen error if anything fails
     try {
       ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
     } catch (e) {
