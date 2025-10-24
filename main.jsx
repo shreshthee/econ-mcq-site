@@ -1,4 +1,4 @@
-/* ============= EconoLearn – main.jsx (fixed dropdown + legend + mobile ripple) ============= */
+/* ===== EconoLearn – main.jsx (dropdown unclipped + full polish restored) ===== */
 const { useEffect, useMemo, useRef, useState } = React;
 
 /* ---------- Storage ---------- */
@@ -24,13 +24,29 @@ const shuffle=(a)=>{const b=a.slice();for(let i=b.length-1;i>0;i--){const j=(Mat
 const pickN=(a,n)=>shuffle(a).slice(0,n);
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
 
-/* ---------- Small UI helpers ---------- */
-const glassCard = "relative overflow-hidden rounded-3xl p-6 bg-white/60 backdrop-blur-xl border border-white/50 shadow-[0_10px_40px_-10px_rgba(239,156,167,.45)]";
+/* ---------- Micro-UI helpers ---------- */
+const glassCard = "relative overflow-visible rounded-3xl p-6 bg-white/60 backdrop-blur-xl border border-white/50 shadow-[0_10px_40px_-10px_rgba(239,156,167,.45)]";
 const cardWrap  = "relative rounded-3xl p-[1px] bg-gradient-to-br from-rose-100 via-rose-50 to-rose-100";
-const glassBtn  = "ripple touch-press px-4 py-2 rounded-lg border border-white/60 bg-white/70 hover:bg-white text-gray-800 backdrop-blur transition shadow-sm hover:shadow";
-const solidBtn  = "ripple touch-press px-5 py-2 rounded-lg bg-teal-600 text-white shadow-md hover:brightness-[.98]";
+const glassBtn  = "ripple touch-press px-4 py-2 rounded-lg border border-white/60 bg-white/70 hover:bg-white text-gray-800 backdrop-blur transition shadow-sm hover:shadow hover:-translate-y-[1px]";
+const solidBtn  = "ripple touch-press px-5 py-2 rounded-lg bg-teal-600 text-white shadow-md hover:brightness-[.98] hover:-translate-y-[1px] transition";
 
-/* ---------- Background + Header ---------- */
+/* ---------- Ripple CSS (global) ---------- */
+const injectRippleCSS = () => {
+  if (document.getElementById('ripple-style')) return;
+  const style = document.createElement('style');
+  style.id = 'ripple-style';
+  style.textContent = `
+    .ripple{position:relative;overflow:hidden}
+    .ripple:after{content:"";position:absolute;inset:0;border-radius:inherit;transform:scale(0);background:rgba(0,0,0,.08);opacity:0;pointer-events:none;transition:transform .35s ease,opacity .45s ease}
+    .ripple:active:after{transform:scale(1.2);opacity:1}
+    @media(hover:none){.touch-press:active{transform:scale(.98)}}
+    @keyframes slide{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+  `;
+  document.head.appendChild(style);
+};
+injectRippleCSS();
+
+/* ---------- Header & Hero ---------- */
 const Header = ({page,onHome,onHistory,onAnalytics}) => (
   <header className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b">
     <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -52,8 +68,8 @@ const Header = ({page,onHome,onHistory,onAnalytics}) => (
 const Hero = () => (
   <div className="text-center my-6">
     <div className="text-3xl md:text-4xl font-extrabold text-rose-400">EconoLearn</div>
-    <div className="mt-3 inline-block w-[160px] h-[160px] sm:w-[200px] sm:h-[200px] 
-                    bg-[url('./ganesh.png')] bg-contain bg-no-repeat bg-center opacity-40"></div>
+    <div className="mt-3 inline-block w-[160px] h-[160px] sm:w-[200px] sm:h-[200px]
+                    bg-[url('./ganesh.png')] bg-contain bg-no-repeat bg-center opacity-55"></div>
   </div>
 );
 
@@ -69,16 +85,18 @@ const FancySelect = ({value,onChange,options}) => {
   const [open,setOpen]=useState(false);
   const ref = useRef(null); const list=useRef(null);
   useEffect(()=>{const h=(e)=>{if(ref.current&&!ref.current.contains(e.target)&&list.current&&!list.current.contains(e.target)) setOpen(false)};
-                 document.addEventListener('mousedown',h); return ()=>document.removeEventListener('mousedown',h)},[]);
+                 const k=(e)=>{if(e.key==='Escape') setOpen(false)};
+                 document.addEventListener('mousedown',h); document.addEventListener('keydown',k);
+                 return ()=>{document.removeEventListener('mousedown',h); document.removeEventListener('keydown',k);}
+  },[]);
   return (
     <div className="relative">
       <button ref={ref} type="button" className="w-full text-left p-2 pr-9 border rounded-lg bg-white/70 hover:bg-white transition"
               onClick={()=>setOpen(v=>!v)}>
-        {value}
-        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500">▾</span>
+        {value}<span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500">▾</span>
       </button>
       {open&&(
-        <ul ref={list} className="absolute left-0 right-0 max-h-60 overflow-auto rounded-xl border bg-white/95 backdrop-blur shadow-xl mt-2 z-20">
+        <ul ref={list} className="absolute z-30 left-0 right-0 max-h-60 overflow-auto rounded-xl border bg-white/95 backdrop-blur shadow-xl mt-2">
           {options.map(opt=>(
             <li key={opt} onClick={()=>{onChange(opt); setOpen(false);}}
                 className={`px-3 py-2 cursor-pointer hover:bg-teal-50 ${opt===value?'bg-teal-100 text-teal-700 font-medium':''}`}>
@@ -94,7 +112,9 @@ const FancySelect = ({value,onChange,options}) => {
 /* ---------- Progress & Legend ---------- */
 const Progress = ({i,total})=>{
   const pct = total? Math.round(((i+1)/total)*100):0;
-  return <div className="w-full bg-white/60 h-2 rounded-full shadow-inner"><div className="bg-teal-500 h-2 rounded-full transition-all" style={{width:`${pct}%`}}/></div>;
+  return <div className="w-full bg-white/60 h-2 rounded-full shadow-inner">
+    <div className="bg-teal-500 h-2 rounded-full transition-all" style={{width:`${pct}%`}}/>
+  </div>;
 };
 
 const Legend = () => (
@@ -276,6 +296,7 @@ const App = () => {
                       return (
                         <label key={idx}
                           className={`ripple touch-press flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition
+                                      hover:shadow hover:-translate-y-[1px]
                                       bg-white/70 backdrop-blur hover:bg-white ${active?'border-teal-500 ring-1 ring-teal-300':'border-white/60'}`}>
                           <input type="radio" name={`q-${current}`} className="accent-teal-500"
                                  checked={active} onChange={()=>{ setAnswers(p=>({...p,[current]:opt})); setSkipped(p=>{const c={...p}; delete c[current]; return c;}); }} />
@@ -321,13 +342,13 @@ const App = () => {
                   {activeSet.map((_,i)=>{
                     const answered = answers[i]!=null; const mk=!!marked[i]; const sk=!!skipped[i];
                     const s = answered&&mk ? 'attempted_marked' : (!answered&&mk ? 'marked_only' : (!answered&&sk ? 'skipped' : (answered ? 'attempted':'unattempted')));
-                    const base="ripple touch-press w-8 h-8 rounded-md flex items-center justify-center text-sm border shadow-sm transition-all duration-200";
+                    const base="ripple touch-press w-8 h-8 rounded-md flex items-center justify-center text-sm border shadow-sm transition-all duration-150 hover:shadow-md hover:scale-[1.05]";
                     const ring=(i===current)?" ring-2 ring-teal-500":"";
-                    const color = s==='attempted_marked' ? "bg-blue-500 text-white border-blue-600"
-                                 : s==='marked_only'     ? "bg-violet-500 text-white border-violet-600"
-                                 : s==='skipped'         ? "bg-red-500 text-white border-red-600"
-                                 : s==='attempted'       ? "bg-[#32CD32] text-white border-green-600"
-                                                         : "bg-white text-gray-800 border-gray-300";
+                    const color = s==='attempted_marked' ? "bg-blue-500 text-white border-blue-600 hover:brightness-95"
+                                 : s==='marked_only'     ? "bg-violet-500 text-white border-violet-600 hover:brightness-95"
+                                 : s==='skipped'         ? "bg-red-500 text-white border-red-600 hover:brightness-95"
+                                 : s==='attempted'       ? "bg-[#32CD32] text-white border-green-600 hover:brightness-95"
+                                                         : "bg-white text-gray-800 border-gray-300 hover:bg-gray-100";
                     return <button key={i} onClick={()=>{ if(!answers[current]&&!marked[current]) setSkipped(p=>({...p,[current]:true})); setCurrent(i);}} className={`${base} ${color} ${ring}`}>{i+1}</button>;
                   })}
                 </div>
@@ -376,7 +397,7 @@ const App = () => {
     );
   }
 
-  /* HISTORY / ANALYTICS minimal (works, clean) */
+  /* HISTORY */
   if(page==='history'){
     const h=store.get();
     const sorted=[...h].sort((a,b)=>sortBy==='date_desc'? new Date(b.timestamp)-new Date(a.timestamp)
@@ -428,6 +449,7 @@ const App = () => {
     );
   }
 
+  /* ANALYTICS */
   if(page==='analytics'){
     const hist=store.get(); const agg={};
     hist.forEach(at=>at.questions.forEach((q,i)=>{const ch=q.chapter||'Unknown'; agg[ch]??={correct:0,total:0}; agg[ch].total++; if(at.answers[i]===q.answer) agg[ch].correct++;}));
