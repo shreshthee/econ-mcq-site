@@ -1,4 +1,4 @@
-/* =========================  EconoLearn – FULL WORKING APP  ========================= */
+/* =========================  EconoLearn – v3 (Confetti+Ripple+Fixes)  ========================= */
 const { useEffect, useMemo, useRef, useState } = React;
 const { createPortal } = ReactDOM;
 
@@ -25,23 +25,88 @@ const fmt = (s) => {                                    // HH:MM:SS or MM:SS
 const shuffle = (arr) => { const a = arr.slice(); for (let i=a.length-1;i>0;i--){const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]];} return a; };
 const pickN = (arr, n) => shuffle(arr).slice(0, n);
 
-/* ----------------- Cards ----------------- */
+/* ----------------- Glass cards ----------------- */
 const glassCard = "relative overflow-hidden rounded-3xl p-6 bg-white/60 backdrop-blur-xl border border-white/60 shadow-[0_30px_60px_-40px_rgba(244,114,182,0.55)]";
 const glassPanel= "rounded-[24px] p-[1px] bg-gradient-to-br from-rose-100 via-rose-50 to-rose-100";
 
+/* ----------------- Confetti (15 seconds) ----------------- */
+const Confetti = ({ on, durationSec = 15 }) => {
+  useEffect(() => {
+    if (!on) return;
+    const c = document.createElement('canvas');
+    c.style.position='fixed'; c.style.inset='0'; c.style.pointerEvents='none'; c.style.zIndex=9999;
+    document.body.appendChild(c);
+    const ctx=c.getContext('2d');
+    const resize=()=>{c.width=innerWidth; c.height=innerHeight;};
+    resize(); addEventListener('resize',resize);
+    const colors=["#14b8a6","#f43f5e","#60a5fa","#a78bfa","#22c55e","#f59e0b"];
+    const N=Math.min(260, ((c.width+c.height)/5)|0);
+    const G=0.12, D=0.985, cx=c.width/2, cy=c.height*0.2;
+    const p=Array.from({length:N}).map(()=>{const ang=Math.random()*Math.PI-Math.PI/2, sp=6+Math.random()*9;
+      return {x:cx+(Math.random()*100-50), y:cy+(Math.random()*30-15), vx:Math.cos(ang)*sp, vy:Math.sin(ang)*sp-2,
+              s:2+Math.random()*4, r:Math.random()*Math.PI*2, vr:(Math.random()-0.5)*0.2, col:colors[(Math.random()*colors.length)|0], life:0, ttl:60*durationSec};});
+    let raf=0, t0=performance.now();
+    const tick=(t)=>{
+      const dt=(t-t0)/16; t0=t;
+      ctx.clearRect(0,0,c.width,c.height);
+      p.forEach(o=>{o.vx*=D; o.vy=o.vy*D+G; o.x+=o.vx; o.y+=o.vy; o.r+=o.vr; o.life+=dt;
+        const a=Math.max(0,1-o.life/o.ttl); ctx.globalAlpha=a; ctx.save(); ctx.translate(o.x,o.y); ctx.rotate(o.r);
+        ctx.fillStyle=o.col; ctx.fillRect(-o.s,-o.s*0.5,o.s*2,o.s); ctx.restore(); ctx.globalAlpha=1;});
+      raf=requestAnimationFrame(tick);
+    };
+    raf=requestAnimationFrame(tick);
+    const end=setTimeout(()=>{ cancelAnimationFrame(raf); removeEventListener('resize',resize); c.remove(); }, durationSec*1000);
+    return ()=>{ cancelAnimationFrame(raf); clearTimeout(end); removeEventListener('resize',resize); c.remove(); };
+  },[on,durationSec]);
+  return null;
+};
+
+/* ----------------- Ripple Button (for palette) ----------------- */
+function RippleButton({ className="", children, onClick, ...rest }) {
+  const ref = React.useRef(null);
+  const handleClick = (e) => {
+    const host = ref.current;
+    if (host) {
+      const rect = host.getBoundingClientRect();
+      const ripple = document.createElement('span');
+      ripple.style.position = 'absolute';
+      ripple.style.borderRadius = '9999px';
+      ripple.style.pointerEvents = 'none';
+      ripple.style.left = `${e.clientX - rect.left}px`;
+      ripple.style.top  = `${e.clientY - rect.top}px`;
+      ripple.style.width = ripple.style.height = `${Math.max(rect.width, rect.height)}px`;
+      ripple.style.transform = 'translate(-50%, -50%) scale(0)';
+      ripple.style.background = 'rgba(255,255,255,.75)';
+      ripple.style.animation = 'ripple 600ms ease-out';
+      host.appendChild(ripple);
+      ripple.addEventListener('animationend', ()=> ripple.remove());
+    }
+    onClick && onClick(e);
+  };
+  return (
+    <button ref={ref} onClick={handleClick}
+      className={`relative overflow-hidden ${className}`} {...rest}>
+      {children}
+    </button>
+  );
+}
+
 /* ----------------- TopBar ----------------- */
-const TopBar = ({ onHome, onHistory, onAnalytics, page }) => (
+const TopBar = ({ onHome, onHistory, onAnalytics, page, mode, timeLeft }) => (
   <header className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b">
     <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
       <h1 className="text-sm sm:text-base font-semibold">
         <span className="font-extrabold">EconoLearn</span>
         <span className="text-gray-500 font-semibold"> — CUET PG Economics</span>
       </h1>
-      <nav className="flex items-center gap-2 text-sm">
-        {page!=='history'   && <button onClick={onHistory}   className="px-3 py-1 rounded-lg bg-white shadow border">Review Past Results</button>}
-        {page!=='analytics' && <button onClick={onAnalytics} className="px-3 py-1 rounded-lg bg-white shadow border">Analytics</button>}
-        {page!=='home'      && <button onClick={onHome}      className="px-3 py-1 rounded-lg bg-white shadow border">Home</button>}
-      </nav>
+      <div className="flex items-center gap-2">
+        {page==='quiz' && mode==='test' && (
+          <span className={`px-2 py-1 rounded border text-sm ${timeLeft<=30?'border-red-500 text-red-600':'border-gray-300 text-gray-700'}`}>⏱ {fmt(timeLeft)}</span>
+        )}
+        {page!=='history'   && <button onClick={onHistory}   className="px-3 py-1 rounded-lg bg-white border shadow">Review Past Results</button>}
+        {page!=='analytics' && <button onClick={onAnalytics} className="px-3 py-1 rounded-lg bg-white border shadow">Analytics</button>}
+        {page!=='home'      && <button onClick={onHome}      className="px-3 py-1 rounded-lg bg-white border shadow">Home</button>}
+      </div>
     </div>
   </header>
 );
@@ -90,7 +155,7 @@ function FancySelect({ value, onChange, options }) {
         >
           {options.map(opt => (
             <li key={opt} role="option" aria-selected={opt===value}
-                onClick={()=>{onChange(opt); setOpen(false);}}
+                onClick={()=>{ onChange(opt); setOpen(false); }}
                 className={`px-3 py-2 cursor-pointer hover:bg-teal-50 ${opt===value?'bg-teal-100 text-teal-700 font-medium':''}`}>
               {opt}
             </li>
@@ -118,6 +183,7 @@ const App = () => {
   const [err, setErr] = useState('');
   const [sortBy, setSortBy] = useState('date_desc');
 
+  /* ---- load questions ---- */
   useEffect(() => {
     fetch('questions.json?v=' + Date.now())
       .then(r => { if(!r.ok) throw new Error('bad'); return r.json(); })
@@ -130,26 +196,27 @@ const App = () => {
   const attempted = useMemo(()=>Object.keys(answers).filter(k=>answers[k]!=null).length,[answers]);
   const score = useMemo(()=>activeSet.reduce((s,q,i)=>s+(answers[i]===q.answer?1:0),0),[answers,activeSet]);
 
+  /* ---- timer ---- */
   const stopTimer = ()=>{ if (timer.current){ clearInterval(timer.current); timer.current=null; } };
   const startTimer = (sec)=>{ stopTimer(); setRemaining(sec);
     timer.current=setInterval(()=>{ setRemaining(p=>{ if(p<=1){ clearInterval(timer.current); setPage('result'); return 0; } return p-1; }); }, 1000);
   };
 
+  /* ---- navigation helpers ---- */
   const resetRun = ()=>{ setCurrent(0); setAnswers({}); setMarked({}); setSkipped({}); };
-
   const startPractice = ()=>{ 
-    const s = chapter==='All'?questions:questions.filter(q=>q.chapter===chapter); 
-    setActiveSet(s); resetRun(); stopTimer(); setPage('quiz'); 
+    const s = chapter==='All'?questions:questions.filter(q=>q.chapter?.trim()===chapter);
+    setActiveSet(s); resetRun(); stopTimer(); setPage('quiz');
   };
-
   const startTest = ()=>{ 
-    const pool = chapter==='All'?questions:questions.filter(q=>q.chapter===chapter);
+    const pool = chapter==='All'?questions:questions.filter(q=>q.chapter?.trim()===chapter);
     const requestedN = Math.max(1, parseInt(testCount || 1, 10));
     const n = Math.max(1, Math.min(requestedN, pool.length));
     const s = pickN(pool, n);
-    setActiveSet(s); resetRun(); startTimer(timeForN(n)); setPage('quiz'); 
+    setActiveSet(s); resetRun(); startTimer(timeForN(n)); setPage('quiz');
   };
 
+  /* ---- persist to history on result ---- */
   useEffect(() => {
     if (page !== 'result' || !total) return;
     const entry = {
@@ -164,14 +231,14 @@ const App = () => {
     const h = store.get(); h.unshift(entry); store.set(h.slice(0,60));
   }, [page, total, score, answers, activeSet, mode, chapter]);
 
-  /* ----------------- Loading / Error ----------------- */
+  /* ----------------- Loading/Error ----------------- */
   if (loading) return <div className="max-w-4xl mx-auto px-4 py-16 text-center text-gray-500">Loading questions…</div>;
   if (err)      return <div className="max-w-4xl mx-auto px-4 py-16 text-center text-red-600">{err}</div>;
 
   /* ----------------- HOME ----------------- */
   if (page==='home') {
-    const chapterList = ['All',...new Set(questions.map(q=>q.chapter).filter(Boolean))];
-    const filteredCount = chapter==='All'?questions.length:questions.filter(q=>q.chapter===chapter).length;
+    const chapterList = ['All',...Array.from(new Set(questions.map(q=>q.chapter?.trim()).filter(Boolean)))];
+    const filteredCount = chapter==='All'?questions.length:questions.filter(q=>q.chapter?.trim()===chapter).length;
     const requestedN = Math.max(1, parseInt(testCount || 1, 10));
     const effectiveN = Math.min(requestedN, filteredCount || 1);
     const est = timeForN(effectiveN);
@@ -181,58 +248,55 @@ const App = () => {
         <TopBar page={page} onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
         <main className="max-w-6xl mx-auto px-4">
           <h2 className="mt-6 text-4xl font-extrabold text-rose-400 text-center">EconoLearn</h2>
-          {/* Ganesh between heading and card */}
-          <div className="ganesh-center"></div>
+          <div className="ganesh-center" />
+          <section className="mt-2 sm:mt-4 flex justify-center">
+            <div className={`${glassPanel}`}><div className={`${glassCard} w-[92vw] max-w-4xl`}>
+              <h3 className="text-2xl sm:text-3xl font-extrabold">MCQ Practice for CUET PG Economics</h3>
+              <p className="text-gray-600 mt-1">Practice chapter-wise Economics PYQs with instant feedback.</p>
 
-          <section className="mt-2 sm:mt-4 flex justify-center animate-[rise_.35s_ease]">
-            <div className={`${glassPanel}`}>
-              <div className={`${glassCard} w-[92vw] max-w-4xl`}>
-                <h3 className="text-2xl sm:text-3xl font-extrabold">MCQ Practice for CUET PG Economics</h3>
-                <p className="text-gray-600 mt-1">Practice chapter-wise Economics PYQs with instant feedback.</p>
-
-                <div className="mt-4 grid sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm text-gray-700">Chapter Filter</label>
-                    <FancySelect value={chapter} onChange={setChapter} options={chapterList} />
-                  </div>
-                  <div>
-                    <label className="text-sm text-gray-700">Mode</label>
-                    <div className="flex gap-4 mt-2">
-                      <label className="flex items-center gap-2"><input type="radio" checked={mode==='practice'} onChange={()=>setMode('practice')} /> Practice</label>
-                      <label className="flex items-center gap-2"><input type="radio" checked={mode==='test'} onChange={()=>setMode('test')} /> Test</label>
-                    </div>
-                  </div>
+              <div className="mt-4 grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm text-gray-700">Chapter Filter</label>
+                  <FancySelect value={chapter} onChange={setChapter} options={chapterList} />
                 </div>
-
-                {mode==='test' && (
-                  <div className="mt-4 grid sm:grid-cols-[1fr_1fr_auto] items-end gap-4">
-                    <div>
-                      <label className="text-sm text-gray-700 block">No. of Questions</label>
-                      <input type="number" min="1" max={filteredCount} value={testCount}
-                             onChange={e=>setTestCount(e.target.value)}
-                             className="w-24 p-2 border rounded bg-white" />
-                      <div className="text-xs text-gray-600 mt-1">
-                        Available: {filteredCount}
-                        {requestedN > filteredCount && <span className="ml-1 text-rose-600">(Requested {requestedN}, using {effectiveN})</span>}
-                      </div>
-                    </div>
-                    <div className="sm:justify-self-end">
-                      <label className="text-sm text-gray-700 block">Time limit</label>
-                      <div className="p-2 border rounded bg-white text-sm w-24 text-center">{fmt(est)}</div>
-                    </div>
+                <div>
+                  <label className="text-sm text-gray-700">Mode</label>
+                  <div className="flex gap-4 mt-2">
+                    <label className="flex items-center gap-2"><input type="radio" checked={mode==='practice'} onChange={()=>setMode('practice')} /> Practice</label>
+                    <label className="flex items-center gap-2"><input type="radio" checked={mode==='test'} onChange={()=>setMode('test')} /> Test</label>
                   </div>
-                )}
-
-                <div className="mt-5 flex gap-3 flex-wrap">
-                  {mode==='practice'
-                    ? <button onClick={startPractice} className="px-4 py-2 rounded-lg bg-teal-600 text-white shadow hover:bg-teal-700">Start Practice</button>
-                    : <button onClick={startTest} className="px-4 py-2 rounded-lg bg-teal-600 text-white shadow hover:bg-teal-700">Start Test</button>
-                  }
-                  <button onClick={()=>setPage('history')} className="px-4 py-2 rounded-lg bg-white border shadow">Review Past Results</button>
-                  <button onClick={()=>setPage('analytics')} className="px-4 py-2 rounded-lg bg-white border shadow">Analytics</button>
                 </div>
               </div>
-            </div>
+
+              {mode==='test' && (
+                <div className="mt-4 grid sm:grid-cols-[1fr_1fr_auto] items-end gap-4">
+                  <div>
+                    <label className="text-sm text-gray-700 block">No. of Questions</label>
+                    <input type="number" min="1" max={filteredCount} value={testCount}
+                      onChange={e=>setTestCount(e.target.value)}
+                      className="w-24 p-2 border rounded bg-white" />
+                    <div className="text-xs text-gray-600 mt-1">
+                      Available: {filteredCount}
+                      {requestedN > filteredCount &&
+                         <span className="ml-1 text-rose-600">(Requested {requestedN}, using {effectiveN})</span>}
+                    </div>
+                  </div>
+                  <div className="sm:justify-self-end">
+                    <label className="text-sm text-gray-700 block">Time limit</label>
+                    <div className="p-2 border rounded bg-white text-sm w-24 text-center">{fmt(est)}</div>
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-5 flex gap-3 flex-wrap">
+                {mode==='practice'
+                  ? <button onClick={startPractice} className="px-4 py-2 rounded-lg bg-teal-600 text-white shadow hover:bg-teal-700">Start Practice</button>
+                  : <button onClick={startTest}     className="px-4 py-2 rounded-lg bg-teal-600 text-white shadow hover:bg-teal-700">Start Test</button>
+                }
+                <button onClick={()=>setPage('history')}   className="px-4 py-2 rounded-lg bg-white border shadow">Review Past Results</button>
+                <button onClick={()=>setPage('analytics')} className="px-4 py-2 rounded-lg bg-white border shadow">Analytics</button>
+              </div>
+            </div></div>
           </section>
         </main>
       </>
@@ -244,57 +308,75 @@ const App = () => {
     const q = activeSet[current]; if (!q) return null;
     const unattempted = Math.max(0, activeSet.length - attempted);
 
+    // dynamic color for Mark button
+    const hasAns = answers[current]!=null;
+    const isMarked = !!marked[current];
+    const markBtnClass =
+      hasAns && isMarked ? "bg-blue-500 text-white border-blue-600 hover:bg-blue-600" :
+      !hasAns && isMarked ? "bg-violet-500 text-white border-violet-600 hover:bg-violet-600" :
+                            "bg-white text-gray-800";
+
     return (
       <>
-        <TopBar page={page} onHome={()=>{ stopTimer(); setPage('home'); }} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
+        <TopBar page={page} mode={mode} timeLeft={remaining}
+                onHome={()=>{ stopTimer(); setPage('home'); }}
+                onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
         <main className="max-w-6xl mx-auto px-4 py-6">
           <div className="grid lg:grid-cols-[1fr,260px] gap-6">
             <div>
-              <div className="mb-3 text-sm text-gray-600">Question {current+1} of {activeSet.length}</div>
-              <div className={`${glassPanel}`}><div className={`${glassCard}`}>
-                <div className="text-xs uppercase tracking-wide text-gray-600 mb-1">Chapter</div>
-                <div className="mb-3 text-base font-medium">{q.chapter || '—'}</div>
+              <div className="mb-3 flex items-center justify-between">
+                <div className="text-sm text-gray-600">Question {current+1} of {activeSet.length}</div>
+                <div className="text-sm text-gray-700">Attempted: <b>{attempted}</b> • Unattempted: <b>{unattempted}</b></div>
+              </div>
 
-                <h4 className="text-lg font-semibold">{q.question}</h4>
-                {q.source && <div className="text-xs text-gray-600 mt-1">Source: {q.source}</div>}
+              <div className={`${glassPanel}`} key={current}>
+                <div className={`${glassCard}`} style={{animation:'slideFade .28s ease'}}>
+                  <div className="text-xs uppercase tracking-wide text-gray-600 mb-1">Chapter</div>
+                  <div className="mb-3 text-base font-medium">{q.chapter || '—'}</div>
 
-                <div className="mt-5 grid gap-3">
-                  {q.options.map((opt, idx) => {
-                    const active = answers[current] === opt;
-                    return (
-                      <label key={idx}
-                        className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition bg-white hover:bg-gray-50 ${active?'border-teal-500 ring-1 ring-teal-300':'border-gray-200'}`}>
-                        <input type="radio" name={`q-${current}`} className="accent-teal-600"
-                               checked={active}
-                               onChange={()=>{ setAnswers(p=>({...p,[current]:opt})); setSkipped(p=>{const c={...p}; delete c[current]; return c;}); }} />
-                        <span className="font-medium">{String.fromCharCode(65+idx)}.</span>
-                        <span>{opt}</span>
-                      </label>
-                    );
-                  })}
+                  <h4 className="text-lg font-semibold">{q.question}</h4>
+                  {q.source && <div className="text-xs text-gray-600 mt-1">Source: {q.source}</div>}
+
+                  <div className="mt-5 grid gap-3">
+                    {q.options.map((opt, idx) => {
+                      const active = answers[current] === opt;
+                      return (
+                        <label key={idx}
+                          className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition
+                                      bg-white hover:bg-gray-50
+                                      ${active?'border-teal-500 ring-1 ring-teal-300':'border-gray-200'}`}>
+                          <input type="radio" name={`q-${current}`} className="accent-teal-600"
+                                 checked={active}
+                                 onChange={()=>{ setAnswers(p=>({...p,[current]:opt})); setSkipped(p=>{const c={...p}; delete c[current]; return c;}); }} />
+                          <span className="font-medium">{String.fromCharCode(65+idx)}.</span>
+                          <span>{opt}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+
+                  <div className="mt-5 flex flex-wrap items-center gap-2">
+                    <button onClick={()=>setCurrent(c=>Math.max(0,c-1))}
+                            disabled={current===0}
+                            className="px-3 py-2 rounded bg-white border shadow disabled:opacity-50">Previous</button>
+                    <button onClick={()=>setAnswers(p=>{const c={...p}; delete c[current]; return c;})}
+                            className="px-3 py-2 rounded bg-white border shadow">Clear</button>
+                    <button onClick={()=>setMarked(p=>({...p,[current]:!p[current]}))}
+                            className={`px-3 py-2 rounded border shadow transition ${markBtnClass}`}>
+                      {isMarked ? 'Unmark Review' : 'Mark for Review'}
+                    </button>
+                    <div className="flex-1" />
+                    {current < activeSet.length-1 ? (
+                      <button onClick={()=>setCurrent(c=>c+1)} className="px-4 py-2 rounded bg-teal-600 text-white shadow">Next</button>
+                    ) : (
+                      <button onClick={()=>{ stopTimer(); setPage('result'); }} className="px-4 py-2 rounded bg-green-600 text-white shadow">Submit</button>
+                    )}
+                  </div>
                 </div>
-
-                <div className="mt-5 flex flex-wrap items-center gap-2">
-                  <button onClick={()=>setCurrent(c=>Math.max(0,c-1))}
-                          disabled={current===0}
-                          className="px-3 py-2 rounded bg-white border shadow disabled:opacity-50">Previous</button>
-                  <button onClick={()=>setAnswers(p=>{const c={...p}; delete c[current]; return c;})}
-                          className="px-3 py-2 rounded bg-white border shadow">Clear</button>
-                  <button onClick={()=>setMarked(p=>({...p,[current]:!p[current]}))}
-                          className={`px-3 py-2 rounded border shadow ${marked[current]?'bg-violet-500 text-white border-violet-600':'bg-white'}`}>
-                    {marked[current] ? 'Unmark' : 'Mark for Review'}
-                  </button>
-                  <div className="flex-1" />
-                  <div className="text-sm text-gray-700 mr-2">Attempted: <b>{attempted}</b> • Unattempted: <b>{unattempted}</b></div>
-                  {current < activeSet.length-1 ? (
-                    <button onClick={()=>setCurrent(c=>c+1)} className="px-4 py-2 rounded bg-teal-600 text-white shadow">Next</button>
-                  ) : (
-                    <button onClick={()=>{ stopTimer(); setPage('result'); }} className="px-4 py-2 rounded bg-green-600 text-white shadow">Submit</button>
-                  )}
-                </div>
-              </div></div>
+              </div>
             </div>
 
+            {/* Palette */}
             <aside className="lg:sticky lg:top-[72px]">
               <div className="rounded-2xl p-4 bg-white/80 backdrop-blur border shadow">
                 <div className="flex items-center justify-between mb-2">
@@ -305,12 +387,19 @@ const App = () => {
                   {activeSet.map((_,i)=>{
                     const answered = answers[i]!=null; const isMarked = !!marked[i]; const isSkipped = !!skipped[i];
                     const s = answered && isMarked ? 'attempted_marked' : !answered && isMarked ? 'marked_only' : !answered && isSkipped ? 'skipped' : answered ? 'attempted' : 'unattempted';
-                    const color = s==='attempted_marked' ? "bg-blue-500 text-white"
-                               : s==='marked_only'     ? "bg-violet-500 text-white"
-                               : s==='skipped'         ? "bg-red-500 text-white"
-                               : s==='attempted'       ? "bg-green-500 text-white"
-                                                       : "bg-white";
-                    return <button key={i} onClick={()=>setCurrent(i)} className={`w-8 h-8 rounded-md border shadow text-sm ${color}`}>{i+1}</button>;
+                    const color = s==='attempted_marked' ? "bg-blue-500 text-white border-blue-600"
+                               : s==='marked_only'     ? "bg-violet-500 text-white border-violet-600"
+                               : s==='skipped'         ? "bg-red-500 text-white border-red-600"
+                               : s==='attempted'       ? "bg-green-500 text-white border-green-600"
+                                                       : "bg-white text-gray-800 border-gray-300";
+                    return (
+                      <RippleButton key={i}
+                        onClick={()=>setCurrent(i)}
+                        className={`w-8 h-8 rounded-md flex items-center justify-center text-sm border shadow-sm transition
+                                    hover:scale-105 hover:shadow-md ${color}`}>
+                        {i+1}
+                      </RippleButton>
+                    );
                   })}
                 </div>
               </div>
@@ -321,16 +410,18 @@ const App = () => {
     );
   }
 
-  /* ----------------- RESULT ----------------- */
+  /* ----------------- RESULT (with Confetti) ----------------- */
   if (page==='result') {
     const percent = total?Math.round(score/total*100):0;
     return (
       <>
+        <Confetti on={percent>=80} durationSec={15}/>
         <TopBar page={page} onHome={()=>setPage('home')} onHistory={()=>setPage('history')} onAnalytics={()=>setPage('analytics')} />
         <main className="max-w-6xl mx-auto px-4 py-8">
           <div className={`${glassPanel}`}><div className={`${glassCard}`}>
             <h3 className="text-xl font-semibold">Result</h3>
             <p className="mt-1">Score : {score}/{total} ({percent}%)</p>
+            {percent>=80 && <p className="text-sm text-teal-700 mt-1">Great job! 🎉</p>}
 
             <div className="space-y-3 mt-3">
               {activeSet.map((qq,i)=>{
@@ -384,14 +475,10 @@ const App = () => {
           ) : (
             <div className="space-y-4">
               {sorted.map(a=>(
-                <details key={a.id} className={`${glassPanel}`} open={false}>
+                <details key={a.id} className={`${glassPanel}`}>
                   <summary className={`${glassCard} cursor-pointer`}>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-semibold">{new Date(a.timestamp).toLocaleString()} • {a.mode} • {a.chapter}</div>
-                        <div className="text-sm text-gray-700">Score: {a.score}/{a.total} ({a.percent}%) {a.durationSec?`• Time: ${fmt(a.durationSec)}`:''}</div>
-                      </div>
-                    </div>
+                    <div className="font-semibold">{new Date(a.timestamp).toLocaleString()} • {a.mode} • {a.chapter}</div>
+                    <div className="text-sm text-gray-700">Score: {a.score}/{a.total} ({a.percent}%) {a.durationSec?`• Time: ${fmt(a.durationSec)}`:''}</div>
                   </summary>
                   <div className="p-4 bg-white rounded-b-3xl">
                     {a.questions.map((q,i)=>{
